@@ -1,9 +1,11 @@
 import 'package:donziker/providers/music_provider.dart';
-import 'package:donziker/screens/favorites_screen.dart' show FavoritesScreen;
+import 'package:donziker/screens/favorites_screen.dart';
 import 'package:donziker/screens/player_screen.dart';
+import 'package:donziker/screens/video_player_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -13,28 +15,19 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final OnAudioQuery _audioQuery = OnAudioQuery();
-  bool _hasPermission = false;
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    checkAndRequestPermissions();
+    _tabController = TabController(length: 2, vsync: this);
   }
 
-  Future<void> checkAndRequestPermissions({bool retry = false}) async {
-    // Demande la permission de stockage
-    var status = await Permission.storage.request();
-    if (status.isGranted) {
-      setState(() {
-        _hasPermission = true;
-      });
-    } else {
-      setState(() {
-        _hasPermission = false;
-      });
-    }
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -56,65 +49,124 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {},
+            onPressed: () {}, 
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Music'),
+            Tab(text: 'Videos'),
+          ],
+        ),
       ),
-      body: _hasPermission
-          ? FutureBuilder<List<SongModel>>(
-              future: _audioQuery.querySongs(
-                sortType: SongSortType.TITLE,
-                orderType: OrderType.ASC_OR_SMALLER,
-                uriType: UriType.EXTERNAL,
-                ignoreCase: true,
-              ),
-              builder: (context, item) {
-                if (item.hasError) {
-                  return Text(item.error.toString());
-                }
-                if (item.data == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (item.data!.isEmpty) {
-                  return const Center(child: Text("Aucune chanson trouvée."));
-                }
-                return ListView.builder(
-                  itemCount: item.data!.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      leading: QueryArtworkWidget(
-                        id: item.data![index].id,
-                        type: ArtworkType.AUDIO,
-                        nullArtworkWidget: const Icon(Icons.music_note, color: Colors.white),
-                      ),
-                      title: Text(item.data![index].title, maxLines: 1),
-                      subtitle: Text(item.data![index].artist ?? "Artiste inconnu", maxLines: 1),
-                      onTap: () {
-                        context.read<MusicProvider>().setPlaylist(item.data!, index);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PlayerScreen(),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            )
-          : Center(
+      body: Consumer<MusicProvider>(
+        builder: (context, musicProvider, child) {
+          if (!musicProvider.permissionState.isAuth) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Permission d'accès au stockage refusée."),
+                  const Text("Permissions not granted."),
                   ElevatedButton(
-                    onPressed: () => checkAndRequestPermissions(retry: true),
-                    child: const Text("Réessayer"),
+                    onPressed: () => PhotoManager.openSetting(),
+                    child: const Text("Open Settings"),
                   )
                 ],
               ),
+            );
+          }
+
+          if (musicProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _buildMusicList(musicProvider),
+              _buildVideoList(musicProvider),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMusicList(MusicProvider musicProvider) {
+    if (musicProvider.songs.isEmpty) {
+      return const Center(child: Text("No songs found."));
+    }
+
+    return ListView.builder(
+      itemCount: musicProvider.songs.length,
+      itemBuilder: (context, index) {
+        final song = musicProvider.songs[index];
+        return ListTile(
+          leading: SizedBox(
+            width: 56,
+            height: 56,
+            child: AssetEntityImage(
+              song,
+              isOriginal: false,
+              thumbnailSize: const ThumbnailSize.square(200),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(Icons.music_note, color: Colors.white);
+              },
             ),
+          ),
+          title: Text(song.title ?? "Unknown Title", maxLines: 1),
+          subtitle: Text(song.title ?? "Unknown Title", maxLines: 1), // Using title as artist is not available
+          onTap: () {
+            musicProvider.setPlaylist(musicProvider.songs, index);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PlayerScreen(),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildVideoList(MusicProvider musicProvider) {
+    if (musicProvider.videos.isEmpty) {
+      return const Center(child: Text("No videos found."));
+    }
+
+    return ListView.builder(
+      itemCount: musicProvider.videos.length,
+      itemBuilder: (context, index) {
+        final video = musicProvider.videos[index];
+        return ListTile(
+          leading: SizedBox(
+            width: 56,
+            height: 56,
+            child: AssetEntityImage(
+              video,
+              isOriginal: false,
+              thumbnailSize: const ThumbnailSize.square(200),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(Icons.videocam, color: Colors.white);
+              },
+            ),
+          ),
+          title: Text(video.title ?? "Unknown Title", maxLines: 1),
+          subtitle: Text(""), // AssetEntity doesn't have an artist property
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VideoPlayerScreen(video: video),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

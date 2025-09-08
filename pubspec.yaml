@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  on_audio_query: ^2.9.0
+  
   just_audio: ^0.9.38
   permission_handler: ^11.3.1
   provider: ^6.1.2
@@ -40,10 +40,16 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.3
+  video_player: ^2.8.6
+  device_info_plus: ^10.1.0
+  photo_manager: ^3.1.1
+  photo_manager_image_provider: ^2.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_native_splash: ^2.4.0
+  flutter_launcher_icons: ^0.13.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -52,9 +58,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
-dependency_overrides:
-  on_audio_query_android:
-    path: C:\Users\chami\Desktop\donziker\temp_on_audio_query\packages\on_audio_query_android
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -66,6 +70,17 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/images/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo.png"
+
+flutter_native_splash:
+  color: "#121212"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

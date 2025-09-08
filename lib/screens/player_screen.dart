@@ -1,8 +1,7 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
-
-// import 'package:on_audio_query/on_audio_query.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import 'package:provider/provider.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -36,12 +35,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
               }
               return IconButton(
                 icon: Icon(
-                  provider.isFavorite(song.id)
+                  provider.isFavorite(song.id) // Use id for now, will fix later
                       ? Icons.favorite
                       : Icons.favorite_border,
                 ),
                 onPressed: () {
-                  provider.toggleFavorite(song.id);
+                  provider.toggleFavorite(song.id); // Use id for now, will fix later
                 },
               );
             },
@@ -69,26 +68,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
               children: [
                 const Spacer(),
                 // Artwork
-                QueryArtworkWidget(
-                  id: song.id,
-                  type: ArtworkType.AUDIO,
-                  artworkHeight: 250,
-                  artworkWidth: 250,
-                  artworkFit: BoxFit.cover,
-                  nullArtworkWidget: Container(
-                    height: 250,
-                    width: 250,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withAlpha((255 * 0.2).round()),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.music_note, size: 100, color: Colors.white),
+                SizedBox(
+                  height: 250,
+                  width: 250,
+                  child: AssetEntityImage(
+                    song,
+                    isOriginal: false,
+                    thumbnailSize: const ThumbnailSize.square(250),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 250,
+                        width: 250,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withAlpha((255 * 0.2).round()),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.music_note, size: 100, color: Colors.white),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 32),
                 // Title and Artist
                 Text(
-                  song.title,
+                  song.title ?? "Unknown Title",
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -96,7 +100,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  song.artist ?? "Artiste Inconnu",
+                  song.title ?? "Unknown Title",
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -135,13 +139,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 // Controls
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.shuffle,
+                        color: provider.isShuffle ? Colors.deepPurple : Colors.white,
+                      ),
+                      onPressed: provider.toggleShuffle,
+                    ),
                     IconButton(
                       icon: const Icon(Icons.skip_previous, size: 40),
                       onPressed: provider.playPrevious,
                     ),
-                    const SizedBox(width: 24),
                     StreamBuilder<bool>(
                       stream: provider.audioPlayer.playingStream,
                       builder: (context, snapshot) {
@@ -155,10 +165,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         );
                       },
                     ),
-                    const SizedBox(width: 24),
                     IconButton(
                       icon: const Icon(Icons.skip_next, size: 40),
                       onPressed: provider.playNext,
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        provider.repeatMode == RepeatMode.one
+                            ? Icons.repeat_one
+                            : Icons.repeat,
+                        color: provider.repeatMode != RepeatMode.none
+                            ? Colors.deepPurple
+                            : Colors.white,
+                      ),
+                      onPressed: provider.cycleRepeatMode,
                     ),
                   ],
                 ),
