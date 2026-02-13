@@ -1,5 +1,6 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
+import 'package:donziker/widgets/song_options_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
@@ -313,7 +314,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _showMoreOptions(BuildContext context) {
-    // Show a bottom sheet with options like 'Add to playlist', 'Share', etc.
+    final provider = Provider.of<MusicProvider>(context, listen: false);
+    final song = provider.currentSong;
+    if (song != null) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (context) => SongOptionsSheet(song: song),
+      );
+    }
   }
 
   void _showSpeedDialog(BuildContext context, MusicProvider provider) {

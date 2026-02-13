@@ -14,9 +14,10 @@ Future<void> main() async {
     
     // Initialisation séquentielle pour éviter les conflits SQLite au démarrage
     await JustAudioBackground.init(
-      androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
-      androidNotificationChannelName: 'Audio playback',
+      androidNotificationChannelId: 'com.donchaminade.donziker.channel.audio',
+      androidNotificationChannelName: 'DonZiker Playback',
       androidNotificationOngoing: true,
+      androidNotificationIcon: 'mipmap/ic_launcher',
     );
     
     // Pause pour laisser les services se stabiliser

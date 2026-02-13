@@ -261,6 +261,12 @@ class MusicProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void forceRepeatOne() {
+    _repeatMode = RepeatMode.one;
+    _audioPlayer.setLoopMode(LoopMode.one);
+    notifyListeners();
+  }
+
   void toggleFavorite(String songId) async {
     if (_favorites.contains(songId)) {
       _favorites.remove(songId);

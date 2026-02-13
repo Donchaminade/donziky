@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:donziker/screens/settings_screen.dart';
+import 'package:donziker/widgets/song_options_sheet.dart';
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
 import 'package:donziker/screens/player_screen.dart';
@@ -342,8 +343,15 @@ class _DdmusicHomeScreenState extends State<DdmusicHomeScreen> {
             title: Text(song.title, overflow: TextOverflow.ellipsis),
             subtitle: Text(song.artist ?? '<unknown>', overflow: TextOverflow.ellipsis),
             trailing: IconButton(
-              icon: const Icon(Icons.more_vert),
-              onPressed: () {},
+              icon: const Icon(Icons.more_vert, color: Colors.white54),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  isScrollControlled: true,
+                  builder: (context) => SongOptionsSheet(song: song),
+                );
+              },
             ),
             onTap: () => Provider.of<MusicProvider>(context, listen: false).setPlaylist(songs, index),
           );
