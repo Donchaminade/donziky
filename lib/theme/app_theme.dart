@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static ThemeData darkTheme() {
-    return ThemeData.dark().copyWith(
+  static ThemeData lightTheme(Color accentColor) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(seedColor: accentColor, brightness: Brightness.light),
+    );
+  }
+
+  static ThemeData darkTheme(Color accentColor) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(seedColor: accentColor, brightness: Brightness.dark),
       scaffoldBackgroundColor: Colors.black,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.deepPurple,
-        brightness: Brightness.dark,
-      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        titleTextStyle: TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        ),
+        centerTitle: true,
       ),
     );
   }

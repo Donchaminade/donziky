@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.donziker"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -17,15 +17,6 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
-    // Configure JVM Toolchain for consistent Java versions
-    // This ensures all Java and Kotlin compilation tasks use JDK 17
-    // This is the recommended approach for resolving JVM compatibility issues
-    java {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(17)
-        }
     }
 
     defaultConfig {

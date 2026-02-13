@@ -1,8 +1,9 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/screens/player_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:photo_manager/photo_manager.dart';
-import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
+import 'package:on_audio_query/on_audio_query.dart';
+// import 'package:on_audio_query_forked/on_audio_query.dart';
+// import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 
 class FavoritesScreen extends StatelessWidget {
@@ -21,7 +22,7 @@ class FavoritesScreen extends StatelessWidget {
           }
 
           final allSongs = provider.songs;
-          final favoriteSongs = allSongs.where((song) => provider.isFavorite(song.id)).toList();
+          final favoriteSongs = allSongs.where((song) => provider.isFavorite(song.id.toString())).toList();
 
           if (favoriteSongs.isEmpty) {
             return const Center(child: Text('Aucun favori pour le moment'));
@@ -32,23 +33,14 @@ class FavoritesScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final song = favoriteSongs[index];
               return ListTile(
-                title: Text(song.title ?? "Unknown Title"),
-                subtitle: Text(song.title ?? "Unknown Title"),
-                leading: SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: AssetEntityImage(
-                    song,
-                    isOriginal: false,
-                    thumbnailSize: const ThumbnailSize.square(200),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.music_note, color: Colors.white);
-                    },
-                  ),
+                title: Text(song.title),
+                subtitle: Text(song.artist ?? "Unknown Artist"),
+                leading: QueryArtworkWidget(
+                  id: song.id,
+                  type: ArtworkType.AUDIO,
+                  nullArtworkWidget: const Icon(Icons.music_note, color: Colors.white, size: 40),
                 ),
                 onTap: () {
-                  // Find the index of the favorite song in the main songs list
                   final originalIndex = provider.songs.indexOf(song);
                   if (originalIndex != -1) {
                     provider.setPlaylist(provider.songs, originalIndex);
