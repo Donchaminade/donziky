@@ -11,6 +11,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:palette_generator/palette_generator.dart';
 
 enum RepeatMode { none, one, all }
 
@@ -28,6 +29,7 @@ class MusicProvider extends ChangeNotifier {
   bool _permissionGranted = false;
   bool _isShuffle = false;
   RepeatMode _repeatMode = RepeatMode.none;
+  Color _currentAccentColor = Colors.redAccent; // Default accent color
 
   // Sleep Timer
   Timer? _sleepTimer;
@@ -56,6 +58,7 @@ class MusicProvider extends ChangeNotifier {
   Duration? get pointA => _pointA;
   Duration? get pointB => _pointB;
   bool get isABLoopActive => _isABLoopActive;
+  Color get currentAccentColor => _currentAccentColor;
 
   String get searchQuery => _searchQuery;
   String? get currentLyrics => _currentLyrics;
@@ -103,10 +106,24 @@ class MusicProvider extends ChangeNotifier {
           final songId = _songs[_currentIndex].id;
           _addToRecentlyPlayed(songId.toString());
           loadLyrics(songId); // Automatically load lyrics
+          _updateAccentColor(songId); // Extract colors
         }
         notifyListeners();
       }
     });
+  }
+
+  Future<void> _updateAccentColor(int songId) async {
+    try {
+      final artwork = await _audioQuery.queryArtwork(songId, ArtworkType.AUDIO, size: 200);
+      if (artwork != null) {
+        final palette = await PaletteGenerator.fromImageProvider(MemoryImage(artwork));
+        _currentAccentColor = palette.dominantColor?.color ?? palette.vibrantColor?.color ?? Colors.redAccent;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Error extracting palette: $e");
+    }
   }
 
   Future<void> _loadPreferences() async {

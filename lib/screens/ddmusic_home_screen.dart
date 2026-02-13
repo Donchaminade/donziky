@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:donziker/screens/settings_screen.dart';
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
@@ -59,29 +60,31 @@ class _DdmusicHomeScreenState extends State<DdmusicHomeScreen> {
           return CustomScrollView(
             slivers: [
               _buildSliverAppBar(accentColor, provider),
-              SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    if (provider.searchQuery.isEmpty) ...[
-                      if (favorites.isNotEmpty) ...[
-                        _buildSectionTitle('Mes favoris'),
-                        _buildFavoriteSongsSection(favorites, accentColor),
-                      ],
-                      if (recentlyPlayed.isNotEmpty) ...[
-                        const SizedBox(height: 20),
-                        _buildSectionTitle('Écoutées en dernier'),
-                        _buildHorizontalSongList(recentlyPlayed, accentColor),
-                      ],
-                      const SizedBox(height: 20),
-                      _buildSectionTitle('Toutes les chansons'),
-                    ] else ...[
-                      _buildSectionTitle('Résultats de recherche'),
-                    ],
-                    _buildVerticalSongList(songs, accentColor),
-                    const SizedBox(height: 100), // Space for MiniPlayer
-                  ],
-                ),
-              ),
+              
+              if (provider.searchQuery.isEmpty) ...[
+                // Favorites Section
+                if (favorites.isNotEmpty) ...[
+                  SliverToBoxAdapter(child: _buildSectionTitle('Mes favoris')),
+                  SliverToBoxAdapter(child: _buildFavoriteSongsSection(favorites, accentColor)),
+                ],
+                
+                // Recently Played Section
+                if (recentlyPlayed.isNotEmpty) ...[
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                  SliverToBoxAdapter(child: _buildSectionTitle('Écoutées en dernier')),
+                  SliverToBoxAdapter(child: _buildHorizontalSongList(recentlyPlayed, accentColor)),
+                ],
+                
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                SliverToBoxAdapter(child: _buildSectionTitle('Toutes les chansons')),
+              ] else ...[
+                SliverToBoxAdapter(child: _buildSectionTitle('Résultats de recherche')),
+              ],
+
+              // Main Song List (Virtualized)
+              _buildSliverSongList(songs, accentColor),
+              
+              const SliverToBoxAdapter(child: SizedBox(height: 100)), // Space for MiniPlayer
             ],
           );
         },
@@ -132,15 +135,20 @@ class _DdmusicHomeScreenState extends State<DdmusicHomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Bonjour,",
-                    style: TextStyle(fontSize: 18, color: Colors.white70),
+                   ShaderMask(
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: [Colors.white, Colors.white.withOpacity(0.5)],
+                    ).createShader(bounds),
+                    child: const Text(
+                      "Bonjour,",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w300, color: Colors.white),
+                    ),
                   ),
                   const Text(
                     "Découvrez votre musique",
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 25),
                   _buildSearchBar(provider),
                 ],
               ),
@@ -161,21 +169,29 @@ class _DdmusicHomeScreenState extends State<DdmusicHomeScreen> {
   }
 
   Widget _buildSearchBar(MusicProvider provider) {
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: TextField(
-        onChanged: provider.updateSearchQuery,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: "Rechercher une musique, un artiste...",
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-          prefixIcon: const Icon(Icons.search, color: Colors.white70),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: TextField(
+            onChanged: provider.updateSearchQuery,
+            onTapOutside: (event) => FocusScope.of(context).unfocus(),
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: "Rechercher une musique, un artiste...",
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+              prefixIcon: const Icon(Icons.search, color: Colors.white70),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+            ),
+          ),
         ),
       ),
     );
@@ -232,18 +248,19 @@ class _DdmusicHomeScreenState extends State<DdmusicHomeScreen> {
 
   Widget _buildFavoriteSongsSection(List<SongModel> songs, Color accentColor) {
     return SizedBox(
-      height: 160,
+      height: 180,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         itemCount: (songs.length / 2).ceil(),
         itemBuilder: (context, index) {
           final firstIndex = index * 2;
           final secondIndex = firstIndex + 1;
           return Container(
-            width: 250,
+            width: 280,
             margin: const EdgeInsets.symmetric(horizontal: 8),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildSongCard(songs[firstIndex], accentColor),
                 if (secondIndex < songs.length)
@@ -258,38 +275,38 @@ class _DdmusicHomeScreenState extends State<DdmusicHomeScreen> {
 
   Widget _buildSongCard(SongModel song, Color accentColor) {
     final provider = Provider.of<MusicProvider>(context, listen: false);
-    return InkWell(
-      onTap: () => provider.setPlaylist([song], 0),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(10),
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: QueryArtworkWidget(
+            id: song.id,
+            type: ArtworkType.AUDIO,
+            nullArtworkWidget: const Icon(Icons.music_note, size: 40),
+            artworkBorder: BorderRadius.circular(8),
+            artworkQuality: FilterQuality.low,
+            size: 150, // Optimize for memory
+          ),
         ),
-        child: Row(
-          children: [
-            QueryArtworkWidget(
-              id: song.id,
-              type: ArtworkType.AUDIO,
-              nullArtworkWidget: const Icon(Icons.music_note, size: 40),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(song.title, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-                  Text(song.artist ?? '<unknown>', style: const TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: Icon(Icons.play_arrow, color: accentColor),
-              onPressed: () => provider.setPlaylist([song], 0),
-            ),
-          ],
+        title: Text(song.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), overflow: TextOverflow.ellipsis),
+        subtitle: Text(song.artist ?? '<unknown>', style: const TextStyle(fontSize: 11, color: Colors.grey), overflow: TextOverflow.ellipsis),
+        trailing: Container(
+          decoration: BoxDecoration(
+            color: accentColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: Icon(Icons.play_arrow, color: accentColor, size: 20),
+            onPressed: () => provider.setPlaylist([song], 0),
+          ),
         ),
+        onTap: () => provider.setPlaylist([song], 0),
       ),
     );
   }
@@ -308,29 +325,36 @@ class _DdmusicHomeScreenState extends State<DdmusicHomeScreen> {
     );
   }
 
-  Widget _buildVerticalSongList(List<SongModel> songs, Color accentColor) {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: songs.length,
-      itemBuilder: (context, index) {
-        final song = songs[index];
-        return ListTile(
-          leading: QueryArtworkWidget(
-            id: song.id,
-            type: ArtworkType.AUDIO,
-            nullArtworkWidget: const Icon(Icons.music_note),
-          ),
-          title: Text(song.title, overflow: TextOverflow.ellipsis),
-          subtitle: Text(song.artist ?? '<unknown>', overflow: TextOverflow.ellipsis),
-          trailing: IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {},
-          ),
-          onTap: () => Provider.of<MusicProvider>(context, listen: false).setPlaylist(songs, index),
-        );
-      },
+  Widget _buildSliverSongList(List<SongModel> songs, Color accentColor) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final song = songs[index];
+          return ListTile(
+            leading: QueryArtworkWidget(
+              id: song.id,
+              type: ArtworkType.AUDIO,
+              nullArtworkWidget: const Icon(Icons.music_note),
+              artworkBorder: BorderRadius.circular(5),
+              artworkQuality: FilterQuality.low,
+              size: 100,
+            ),
+            title: Text(song.title, overflow: TextOverflow.ellipsis),
+            subtitle: Text(song.artist ?? '<unknown>', overflow: TextOverflow.ellipsis),
+            trailing: IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: () {},
+            ),
+            onTap: () => Provider.of<MusicProvider>(context, listen: false).setPlaylist(songs, index),
+          );
+        },
+        childCount: songs.length,
+      ),
     );
+  }
+
+  Widget _buildVerticalSongList(List<SongModel> songs, Color accentColor) {
+    return const SliverToBoxAdapter(child: SizedBox.shrink());
   }
 
   Widget _buildSquareSongCard(SongModel song, int index, List<SongModel> playlist, Color accentColor) {
@@ -357,6 +381,9 @@ class _DdmusicHomeScreenState extends State<DdmusicHomeScreen> {
                     artworkWidth: 150,
                     artworkHeight: 150,
                     nullArtworkWidget: const Center(child: Icon(Icons.music_note, size: 80)),
+                    artworkBorder: BorderRadius.circular(10),
+                    artworkQuality: FilterQuality.low,
+                    size: 150,
                   ),
                 ),
               ),
@@ -392,54 +419,130 @@ class MiniPlayer extends StatelessWidget {
         final song = provider.currentSong;
         if (song == null) return const SizedBox.shrink();
 
-        return InkWell(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PlayerScreen())),
-          child: Container(
-            height: 70,
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4))],
-            ),
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: QueryArtworkWidget(
-                      id: song.id,
-                      type: ArtworkType.AUDIO,
-                      artworkWidth: 54,
-                      artworkHeight: 54,
-                      nullArtworkWidget: const Icon(Icons.music_note),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                child: GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PlayerScreen())),
+                  child: Container(
+                    height: 75,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Hero(
+                            tag: 'albumArt',
+                            child: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black38,
+                                    blurRadius: 8,
+                                    offset: Offset(0, 4),
+                                  )
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: QueryArtworkWidget(
+                                  id: song.id,
+                                  type: ArtworkType.AUDIO,
+                                  nullArtworkWidget: const Icon(Icons.music_note, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                song.title,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                song.artist ?? '<unknown>',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        _PlayerControl(
+                          icon: provider.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                          onPressed: () => provider.isPlaying ? provider.pause() : provider.play(),
+                          padding: 4,
+                        ),
+                        _PlayerControl(
+                          icon: Icons.skip_next_rounded,
+                          onPressed: provider.playNext,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                     ),
                   ),
                 ),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(song.title, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-                      Text(song.artist ?? '<unknown>', style: const TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(provider.isPlaying ? Icons.pause : Icons.play_arrow),
-                  onPressed: () => provider.isPlaying ? provider.pause() : provider.play(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.skip_next),
-                  onPressed: provider.playNext,
-                ),
-              ],
+              ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _PlayerControl extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+  final double padding;
+
+  const _PlayerControl({
+    required this.icon,
+    required this.onPressed,
+    this.padding = 8,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Container(
+        padding: EdgeInsets.all(padding),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 28),
+      ),
+      onPressed: onPressed,
     );
   }
 }
