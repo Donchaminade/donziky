@@ -1,7 +1,7 @@
 import 'package:donziker/providers/music_provider.dart';
+import 'package:donziker/services/permission_service.dart';
 import 'package:donziker/providers/theme_provider.dart';
-import 'package:donziker/screens/home_screen.dart';
-import 'package:donziker/screens/splash_permission_screen.dart';
+import 'package:donziker/screens/wow_splash_screen.dart';
 import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/widgets/app_lifecycle_handler.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +14,12 @@ Future<void> main() async {
     // Initialisation séquentielle pour éviter les conflits SQLite au démarrage
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.donchaminade.donziker.channel.audio',
-      androidNotificationChannelName: 'DonZiker Playback',
+      androidNotificationChannelName: 'DonZiker',
+      androidNotificationChannelDescription: 'Contrôles de lecture musique',
       androidNotificationOngoing: true,
-      androidNotificationIcon: 'mipmap/ic_launcher',
+      androidNotificationIcon: 'drawable/ic_stat_donziker',
+      androidShowNotificationBadge: true,
+      preloadArtwork: true,
     );
     
     // Pause pour laisser les services se stabiliser
@@ -28,6 +31,9 @@ Future<void> main() async {
     // Init provider et attendre un peu
     await musicProvider.init();
     await musicProvider.refreshPermissionStatus();
+    if (musicProvider.permissionGranted) {
+      await PermissionService().ensureNotificationPermission();
+    }
 
     runApp(
       MultiProvider(
@@ -35,8 +41,8 @@ Future<void> main() async {
           ChangeNotifierProvider.value(value: musicProvider),
           ChangeNotifierProvider.value(value: themeProvider),
         ],
-        child: AppLifecycleHandler(
-          child: MyApp(skipPermissionSplash: musicProvider.permissionGranted),
+        child: const AppLifecycleHandler(
+          child: MyApp(),
         ),
       ),
     );
@@ -47,9 +53,7 @@ Future<void> main() async {
 }
 
 class MyApp extends StatelessWidget {
-  final bool skipPermissionSplash;
-
-  const MyApp({super.key, this.skipPermissionSplash = false});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -61,9 +65,7 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.lightTheme(themeProvider.accentColor),
           darkTheme: AppTheme.darkTheme(themeProvider.accentColor),
           themeMode: themeProvider.themeMode,
-          home: skipPermissionSplash
-              ? const HomeScreen()
-              : const SplashPermissionScreen(),
+          home: const WowSplashScreen(),
         );
       },
     );

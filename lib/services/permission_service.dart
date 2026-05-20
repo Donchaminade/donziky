@@ -75,4 +75,13 @@ class PermissionService {
   Future<void> openSystemSettings() async {
     await openAppSettings();
   }
+
+  /// Android 13+ : requis pour afficher la notification de lecture (écran d'accueil / pop-up).
+  Future<void> ensureNotificationPermission() async {
+    if (!Platform.isAndroid) return;
+    final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+    if (sdk >= 33) {
+      await Permission.notification.request();
+    }
+  }
 }

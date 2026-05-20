@@ -5,13 +5,34 @@ import 'package:donziker/services/permission_service.dart';
 import 'package:donziker/screens/stats_screen.dart';
 import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/theme/theme_extensions.dart';
+import 'package:donziker/utils/song_scroll_helper.dart';
+import 'package:donziker/widgets/compact_song_card.dart';
 import 'package:donziker/widgets/premium/premium_song_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 
-class HomeTabScreen extends StatelessWidget {
+class HomeTabScreen extends StatefulWidget {
   const HomeTabScreen({super.key});
+
+  @override
+  State<HomeTabScreen> createState() => _HomeTabScreenState();
+}
+
+class _HomeTabScreenState extends State<HomeTabScreen> {
+  final GlobalKey _playingItemKey = GlobalKey();
+  int _lastLocateGen = -1;
+
+  void _handleLocate(MusicProvider provider, List<SongModel> songs) {
+    if (provider.locateGeneration == _lastLocateGen) return;
+    if (provider.scrollToSongId == null) return;
+    _lastLocateGen = provider.locateGeneration;
+    SongScrollHelper.scrollToCurrentSong(
+      context: context,
+      itemKey: _playingItemKey,
+      songs: songs,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,10 +78,14 @@ class HomeTabScreen extends StatelessWidget {
           );
         }
 
+        final songs = provider.filteredSongs;
+        _handleLocate(provider, songs);
+
         final favorites = provider.favoriteSongs;
         final recent = provider.recentlyPlayed;
         final top = provider.smartMostPlayed;
         final added = provider.smartRecentlyAdded;
+        final currentId = provider.currentSong?.id;
 
         return Scaffold(
           backgroundColor: c.surface,
@@ -111,33 +136,39 @@ class HomeTabScreen extends StatelessWidget {
                 if (provider.searchQuery.isEmpty) ...[
                   if (favorites.isNotEmpty) ...[
                     _section(context, 'Mes favoris'),
-                    SliverToBoxAdapter(child: _horizontal(context, favorites, provider, c)),
+                    SliverToBoxAdapter(child: CompactSongRow(songs: favorites)),
                   ],
                   if (recent.isNotEmpty) ...[
                     _section(context, 'Écoutées récemment'),
-                    SliverToBoxAdapter(child: _horizontal(context, recent, provider, c)),
+                    SliverToBoxAdapter(child: CompactSongRow(songs: recent)),
                   ],
                   if (top.isNotEmpty) ...[
                     _section(context, 'Les plus écoutés'),
-                    SliverToBoxAdapter(child: _horizontal(context, top, provider, c)),
+                    SliverToBoxAdapter(child: CompactSongRow(songs: top)),
                   ],
                   if (added.isNotEmpty) ...[
                     _section(context, 'Ajoutés récemment'),
-                    SliverToBoxAdapter(child: _horizontal(context, added, provider, c)),
+                    SliverToBoxAdapter(child: CompactSongRow(songs: added)),
                   ],
-                  _section(context, 'Toutes les chansons (${provider.filteredSongs.length})'),
+                  _section(context, 'Toutes les chansons (${songs.length})'),
                 ] else
-                  _section(context, 'Résultats (${provider.filteredSongs.length})'),
+                  _section(context, 'Résultats (${songs.length})'),
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
-                      final songs = provider.filteredSongs;
-                      return PremiumSongTile(song: songs[i], playlistContext: songs, index: i);
+                      final song = songs[i];
+                      final isCurrent = currentId == song.id;
+                      return PremiumSongTile(
+                        song: song,
+                        playlistContext: songs,
+                        index: i,
+                        itemKey: isCurrent ? _playingItemKey : null,
+                      );
                     },
-                    childCount: provider.filteredSongs.length,
+                    childCount: songs.length,
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                const SliverToBoxAdapter(child: SizedBox(height: 140)),
               ],
             ),
           ),
@@ -182,57 +213,4 @@ class HomeTabScreen extends StatelessWidget {
     );
   }
 
-  Widget _horizontal(BuildContext context, List<SongModel> songs, MusicProvider provider, DzColors c) {
-    return SizedBox(
-      height: 200,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: songs.length,
-        itemBuilder: (context, i) {
-          final song = songs[i];
-          return GestureDetector(
-            onTap: () => provider.setQueue(songs, i),
-            child: Container(
-              width: 148,
-              margin: const EdgeInsets.only(right: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: QueryArtworkWidget(
-                      id: song.id,
-                      type: ArtworkType.AUDIO,
-                      artworkWidth: 148,
-                      artworkHeight: 148,
-                      nullArtworkWidget: Container(
-                        width: 148,
-                        height: 148,
-                        color: c.highlight,
-                        child: Icon(Icons.music_note_rounded, color: c.accent, size: 48),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: c.primaryText),
-                  ),
-                  Text(
-                    song.artist ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: c.secondaryText),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }

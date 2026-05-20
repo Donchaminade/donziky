@@ -5,16 +5,17 @@ import 'package:donziker/theme/theme_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Logo après le splash natif → permissions (une seule fois) → accueil.
+/// Permissions après le splash animé (dialogues uniquement si [skipIntro]).
 class SplashPermissionScreen extends StatefulWidget {
-  const SplashPermissionScreen({super.key});
+  final bool skipIntro;
+
+  const SplashPermissionScreen({super.key, this.skipIntro = false});
 
   @override
   State<SplashPermissionScreen> createState() => _SplashPermissionScreenState();
 }
 
 class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
-  bool _logoVisible = false;
   final _permissionService = PermissionService();
 
   @override
@@ -24,9 +25,10 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
   }
 
   Future<void> _bootstrap() async {
-    await Future.delayed(const Duration(milliseconds: 900));
+    if (!widget.skipIntro) {
+      await Future.delayed(const Duration(milliseconds: 400));
+    }
     if (!mounted) return;
-    setState(() => _logoVisible = true);
 
     final provider = context.read<MusicProvider>();
     final wasGranted = await MusicProvider.wasMediaGrantedBefore();
@@ -40,7 +42,6 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
       return;
     }
 
-    // Déjà autorisé avant mais permission révoquée → demande système directe, sans long dialogue
     if (wasGranted || onboardingDone) {
       await provider.checkAndRequestPermissions();
       if (!mounted) return;
@@ -52,7 +53,6 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
       return;
     }
 
-    // Première installation : dialogue explicatif puis pop-up système
     await _showFirstLaunchDialog(provider);
   }
 
@@ -129,8 +129,15 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
 
   Future<void> _openHome() async {
     if (!mounted) return;
+    await _permissionService.ensureNotificationPermission();
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const HomeScreen(),
+        transitionDuration: const Duration(milliseconds: 500),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
     );
   }
 
@@ -139,30 +146,11 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
     final c = context.dz;
     return Scaffold(
       backgroundColor: c.surface,
-      body: Center(
-        child: AnimatedOpacity(
-          opacity: _logoVisible ? 1 : 0.4,
-          duration: const Duration(milliseconds: 500),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/images/logo.png',
-                height: 140,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.music_note, size: 120, color: Colors.white),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'DonZiker',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: c.primaryText),
-              ),
-              const SizedBox(height: 28),
-              CircularProgressIndicator(color: c.accent),
-            ],
-          ),
-        ),
-      ),
+      body: widget.skipIntro
+          ? const SizedBox.shrink()
+          : Center(
+              child: CircularProgressIndicator(color: c.accent),
+            ),
     );
   }
 }

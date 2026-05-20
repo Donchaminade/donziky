@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Couleur de la notification média (barre de statut / pop-up) -->
+    <color name="notification_accent">#FF375F</color>
+	<color name="ic_launcher_background">#121212</color>
+</resources>

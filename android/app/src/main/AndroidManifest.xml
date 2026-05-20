@@ -8,9 +8,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
-        android:label="donziker"
+        android:label="DonZiker"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity
@@ -44,6 +45,18 @@
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
+            <meta-data
+                android:name="com.ryanheise.audioservice.notification_channel_name"
+                android:value="DonZiker" />
+            <meta-data
+                android:name="com.ryanheise.audioservice.notification_channel_description"
+                android:value="Lecture de musique en arrière-plan" />
+            <meta-data
+                android:name="com.ryanheise.audioservice.notification_icon"
+                android:resource="@drawable/ic_stat_donziker" />
+            <meta-data
+                android:name="com.ryanheise.audioservice.notification_color"
+                android:resource="@color/notification_accent" />
         </service>
 
         <!-- ADD THIS RECEIVER FOR just_audio_background -->

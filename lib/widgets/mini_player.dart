@@ -92,7 +92,7 @@ class MiniPlayer extends StatelessWidget {
                               color: c.accent,
                               size: 30,
                             ),
-                            onPressed: () => provider.isPlaying ? provider.pause() : provider.play(),
+                            onPressed: provider.togglePlayPause,
                           ),
                           IconButton(
                             icon: Icon(Icons.skip_next_rounded, color: c.primaryText, size: 26),

@@ -3,7 +3,9 @@ import 'package:donziker/screens/playlist_detail_screen.dart';
 import 'package:donziker/screens/videos_screen.dart';
 import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/theme/theme_extensions.dart';
+import 'package:donziker/utils/song_scroll_helper.dart';
 import 'package:donziker/utils/song_utils.dart';
+import 'package:donziker/widgets/library_sort_button.dart';
 import 'package:donziker/widgets/premium/premium_album_card.dart';
 import 'package:donziker/widgets/premium/premium_song_tile.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +24,8 @@ class LibraryHubScreen extends StatefulWidget {
 class _LibraryHubScreenState extends State<LibraryHubScreen> {
   _LibraryFilter _filter = _LibraryFilter.songs;
   String _localSearch = '';
+  final GlobalKey _playingItemKey = GlobalKey();
+  int _lastLocateGen = -1;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +79,7 @@ class _LibraryHubScreenState extends State<LibraryHubScreen> {
                 ),
               ),
               actions: [
+                const LibrarySortButton(),
                 IconButton(
                   icon: Icon(Icons.refresh_rounded, color: c.primaryText),
                   onPressed: provider.refreshLibrary,
@@ -248,18 +253,30 @@ class _LibraryHubScreenState extends State<LibraryHubScreen> {
 
   List<Widget> _songsSlivers(MusicProvider provider) {
     final songs = _filterSongs(provider.filteredSongs);
+    if (provider.locateGeneration != _lastLocateGen && provider.scrollToSongId != null) {
+      _lastLocateGen = provider.locateGeneration;
+      SongScrollHelper.scrollToCurrentSong(
+        context: context,
+        itemKey: _playingItemKey,
+        songs: songs,
+      );
+    }
     if (songs.isEmpty) {
       return [SliverToBoxAdapter(child: Center(child: Text('Aucun morceau')))];
     }
+    final currentId = provider.currentSong?.id;
     return [
       SliverList(
         delegate: SliverChildBuilderDelegate(
-          (context, i) => PremiumSongTile(
-            song: songs[i],
-            playlistContext: songs,
-            index: i,
-            highlight: provider.scrollToSongId != null,
-          ),
+          (context, i) {
+            final song = songs[i];
+            return PremiumSongTile(
+              song: song,
+              playlistContext: songs,
+              index: i,
+              itemKey: currentId == song.id ? _playingItemKey : null,
+            );
+          },
           childCount: songs.length,
         ),
       ),

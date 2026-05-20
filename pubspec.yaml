@@ -86,9 +86,19 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#121212"
+  adaptive_icon_foreground: "assets/images/logo.png"
+  remove_alpha_ios: true
 
 flutter_native_splash:
-  color: "#121212"
+  color: "#0A0A0A"
+  image: assets/images/logo.png
+  android: true
+  ios: true
+  android_12:
+    color: "#0A0A0A"
+    image: assets/images/logo.png
+    icon_background_color: "#0A0A0A"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

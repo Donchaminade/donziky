@@ -17,20 +17,31 @@ class SongUtils {
     return p.basename(folder);
   }
 
-  static List<SongModel> sortSongs(List<SongModel> songs, SongSort sort) {
-    final copy = List<SongModel>.from(songs);
+  static int _compare(SongModel a, SongModel b, SongSort sort) {
     switch (sort) {
       case SongSort.title:
-        copy.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
       case SongSort.artist:
-        copy.sort((a, b) => (a.artist ?? '').toLowerCase().compareTo((b.artist ?? '').toLowerCase()));
+        return (a.artist ?? '').toLowerCase().compareTo((b.artist ?? '').toLowerCase());
       case SongSort.album:
-        copy.sort((a, b) => (a.album ?? '').toLowerCase().compareTo((b.album ?? '').toLowerCase()));
+        return (a.album ?? '').toLowerCase().compareTo((b.album ?? '').toLowerCase());
       case SongSort.duration:
-        copy.sort((a, b) => (b.duration ?? 0).compareTo(a.duration ?? 0));
+        return (a.duration ?? 0).compareTo(b.duration ?? 0);
       case SongSort.dateAdded:
-        copy.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
+        return (a.dateAdded ?? 0).compareTo(b.dateAdded ?? 0);
     }
+  }
+
+  static List<SongModel> sortSongs(
+    List<SongModel> songs,
+    SongSort sort,
+    SortOrder order,
+  ) {
+    final copy = List<SongModel>.from(songs);
+    copy.sort((a, b) {
+      final cmp = _compare(a, b, sort);
+      return order == SortOrder.ascending ? cmp : -cmp;
+    });
     return copy;
   }
 

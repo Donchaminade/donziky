@@ -95,15 +95,6 @@ class SettingsScreen extends StatelessWidget {
                           }).toList(),
                         ),
                         const SizedBox(height: 12),
-                        _SettingTile(
-                          title: 'Couleur depuis la pochette',
-                          subtitle: 'Uniquement sur l\'écran de lecture',
-                          trailing: Switch.adaptive(
-                            value: musicProvider.useDynamicAccent,
-                            activeColor: c.accent,
-                            onChanged: musicProvider.setUseDynamicAccent,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -126,6 +117,19 @@ class SettingsScreen extends StatelessWidget {
                                 .toList(),
                             onChanged: (v) {
                               if (v != null) musicProvider.setSongSort(v);
+                            },
+                          ),
+                        ),
+                        _SettingTile(
+                          title: 'Ordre du tri',
+                          trailing: DropdownButton<SortOrder>(
+                            value: musicProvider.sortOrder,
+                            underline: const SizedBox.shrink(),
+                            items: SortOrder.values
+                                .map((o) => DropdownMenuItem(value: o, child: Text(o.label)))
+                                .toList(),
+                            onChanged: (v) {
+                              if (v != null) musicProvider.setSortOrder(v);
                             },
                           ),
                         ),

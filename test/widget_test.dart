@@ -41,6 +41,6 @@ void main() {
 
   test('MusicProvider repeat mode cycles', () {
     final provider = MusicProvider();
-    expect(provider.repeatMode, RepeatMode.none);
+    expect(provider.repeatMode, RepeatMode.all);
   });
 }

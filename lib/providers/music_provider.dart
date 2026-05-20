@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -39,7 +40,7 @@ class MusicProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _permissionGranted = false;
   bool _isShuffle = false;
-  RepeatMode _repeatMode = RepeatMode.none;
+  RepeatMode _repeatMode = RepeatMode.all;
   Color _dynamicAccentColor = Colors.redAccent;
   bool _useDynamicAccent = true;
 
@@ -56,7 +57,17 @@ class MusicProvider extends ChangeNotifier {
 
   String _searchQuery = '';
   String? _currentLyrics;
-  SongSort _songSort = SongSort.title;
+  SongSort _songSort = SongSort.dateAdded;
+  SortOrder _sortOrder = SortOrder.descending;
+  List<SongModel>? _cachedFilteredSongs;
+  String? _cachedFilteredKey;
+
+  bool _uiPlaying = false;
+  bool _syncingPlayback = false;
+  bool _sleepEndOfTrack = false;
+  Timer? _playbackSyncTimer;
+  StreamSubscription<PlayerState>? _playerStateSub;
+  StreamSubscription<PlaybackEvent>? _playbackEventSub;
   bool _hideShortSounds = true;
   int _minDurationMs = 10000;
   bool _gaplessEnabled = true;
@@ -67,11 +78,13 @@ class MusicProvider extends ChangeNotifier {
   int _shellTabIndex = 0;
   int _libraryTabIndex = 0;
   String? _scrollToSongId;
+  int _locateGeneration = 0;
 
   Duration _lastStatsPosition = Duration.zero;
   Duration _lastSavedPosition = Duration.zero;
 
-  bool get isPlaying => _audioPlayer.playing;
+  bool get isPlaying => _uiPlaying;
+  SortOrder get sortOrder => _sortOrder;
   SongModel? get currentSong =>
       _currentIndex >= 0 && _currentIndex < _queue.length ? _queue[_currentIndex] : null;
   List<SongModel> get songs => _librarySongs;
@@ -102,19 +115,36 @@ class MusicProvider extends ChangeNotifier {
   int get shellTabIndex => _shellTabIndex;
   int get libraryTabIndex => _libraryTabIndex;
   String? get scrollToSongId => _scrollToSongId;
+  int get locateGeneration => _locateGeneration;
 
   bool isFavorite(String songId) => _favorites.contains(songId);
 
-  List<SongModel> get filteredSongs => SongUtils.sortSongs(
-        SongUtils.filterSongs(
-          _librarySongs,
-          query: _searchQuery,
-          excludedFolders: _excludedFolders,
-          minDurationMs: _minDurationMs,
-          hideShortSounds: _hideShortSounds,
-        ),
-        _songSort,
-      );
+  List<SongModel> get filteredSongs {
+    final key =
+        '$_searchQuery|$_songSort|$_sortOrder|${_librarySongs.length}|${_excludedFolders.length}|$_hideShortSounds|$_minDurationMs';
+    if (_cachedFilteredKey == key && _cachedFilteredSongs != null) {
+      return _cachedFilteredSongs!;
+    }
+    final result = SongUtils.sortSongs(
+      SongUtils.filterSongs(
+        _librarySongs,
+        query: _searchQuery,
+        excludedFolders: _excludedFolders,
+        minDurationMs: _minDurationMs,
+        hideShortSounds: _hideShortSounds,
+      ),
+      _songSort,
+      _sortOrder,
+    );
+    _cachedFilteredKey = key;
+    _cachedFilteredSongs = result;
+    return result;
+  }
+
+  void _invalidateFilteredCache() {
+    _cachedFilteredKey = null;
+    _cachedFilteredSongs = null;
+  }
 
   List<SongModel> get recentlyPlayed {
     final result = <SongModel>[];
@@ -129,8 +159,11 @@ class MusicProvider extends ChangeNotifier {
     return result;
   }
 
-  List<SongModel> get favoriteSongs =>
-      _librarySongs.where((s) => isFavorite(SongUtils.songId(s))).toList();
+  List<SongModel> get favoriteSongs => SongUtils.sortSongs(
+        _librarySongs.where((s) => isFavorite(SongUtils.songId(s))).toList(),
+        _songSort,
+        _sortOrder,
+      );
 
   List<SongModel> get smartRecentlyAdded {
     final sorted = List<SongModel>.from(_librarySongs);
@@ -167,13 +200,62 @@ class MusicProvider extends ChangeNotifier {
   }
 
   void _setupAudioListeners() {
+    _playerStateSub?.cancel();
+    _playbackEventSub?.cancel();
+
+    _playerStateSub = _audioPlayer.playerStateStream.listen((state) {
+      if (_syncingPlayback) return;
+      // Ne pas passer en pause visuelle pendant un chargement si l'utilisateur veut jouer
+      if (_uiPlaying &&
+          !state.playing &&
+          state.processingState == ProcessingState.loading) {
+        return;
+      }
+      if (state.playing != _uiPlaying) {
+        _uiPlaying = state.playing;
+        _updateWakelock(state.playing);
+        notifyListeners();
+      }
+    });
+
+    _playbackEventSub = _audioPlayer.playbackEventStream.listen((event) async {
+      if (_syncingPlayback || !_uiPlaying) return;
+      final dur = event.duration ?? _audioPlayer.duration;
+      final pos = event.updatePosition;
+      if (dur == null) return;
+      // Reprise si la lecture s'interrompt brutalement en milieu de morceau
+      if (!_audioPlayer.playing &&
+          event.processingState == ProcessingState.ready &&
+          pos < dur - const Duration(seconds: 3)) {
+        try {
+          await _audioPlayer.play();
+        } catch (e) {
+          debugPrint('Auto-resume error: $e');
+        }
+      }
+    });
+
+    _uiPlaying = _audioPlayer.playing;
+    if (_uiPlaying) _updateWakelock(true);
+
     _audioPlayer.processingStateStream.listen((state) async {
       if (state == ProcessingState.completed) {
+        if (_sleepEndOfTrack) {
+          await pause();
+          cancelSleepTimer();
+          return;
+        }
         if (_repeatMode == RepeatMode.one) {
           await _audioPlayer.seek(Duration.zero);
+          _uiPlaying = true;
+          notifyListeners();
           await _audioPlayer.play();
-        } else {
+        } else if (_repeatMode == RepeatMode.all || _currentIndex < _queue.length - 1) {
           playNext();
+        } else {
+          _uiPlaying = false;
+          _updateWakelock(false);
+          notifyListeners();
         }
       }
     });
@@ -246,9 +328,10 @@ class MusicProvider extends ChangeNotifier {
   void requestLocateCurrentSong() {
     final song = currentSong;
     if (song == null) return;
-    _shellTabIndex = 1;
+    _shellTabIndex = 0;
     _libraryTabIndex = 0;
     _scrollToSongId = SongUtils.songId(song);
+    _locateGeneration++;
     notifyListeners();
   }
 
@@ -305,8 +388,11 @@ class MusicProvider extends ChangeNotifier {
     _gaplessEnabled = prefs.getBool('gapless_enabled') ?? true;
     _karaokeMode = prefs.getBool('karaoke_mode') ?? false;
     _karaokeLeadSeconds = prefs.getInt('karaoke_lead_seconds') ?? 8;
-    final sortIndex = prefs.getInt('song_sort') ?? 0;
+    final sortIndex = prefs.getInt('song_sort') ?? SongSort.dateAdded.index;
     _songSort = SongSort.values[sortIndex.clamp(0, SongSort.values.length - 1)];
+    _sortOrder = (prefs.getBool('song_sort_desc') ?? true)
+        ? SortOrder.descending
+        : SortOrder.ascending;
     _audioPlayer.setSpeed(_speed);
     notifyListeners();
   }
@@ -377,7 +463,6 @@ class MusicProvider extends ChangeNotifier {
     await setQueue(restoreQueue, index, autoPlay: wasPlaying);
     if (positionMs > 0) {
       await _audioPlayer.seek(Duration(milliseconds: positionMs));
-      if (wasPlaying) await _audioPlayer.play();
     }
   }
 
@@ -398,6 +483,7 @@ class MusicProvider extends ChangeNotifier {
     final granted = await _permissions.requestAudioAccess();
     if (granted) {
       _permissionGranted = true;
+      await _permissions.ensureNotificationPermission();
       await loadMedia();
       await _markMediaGranted();
     } else {
@@ -433,8 +519,8 @@ class MusicProvider extends ChangeNotifier {
     try {
       await Future.delayed(Duration(milliseconds: 300 + (retryCount * 500)));
       _librarySongs = await _audioQuery.querySongs(
-        sortType: SongSortType.TITLE,
-        orderType: OrderType.ASC_OR_SMALLER,
+        sortType: SongSortType.DATE_ADDED,
+        orderType: OrderType.DESC_OR_GREATER,
         uriType: UriType.EXTERNAL,
         ignoreCase: true,
       );
@@ -443,6 +529,7 @@ class MusicProvider extends ChangeNotifier {
             _librarySongs.where((s) => (s.duration ?? 0) >= _minDurationMs).toList();
       }
 
+      _invalidateFilteredCache();
       await _loadVideosIfAllowed();
       await _loadTopPlayed();
       await _tryResumePlayback();
@@ -511,7 +598,15 @@ class MusicProvider extends ChangeNotifier {
       initialIndex: _currentIndex,
       preload: _gaplessEnabled,
     );
-    if (autoPlay) await _audioPlayer.play();
+    if (autoPlay) {
+      _uiPlaying = true;
+      notifyListeners();
+      await _applyUiPlayingState();
+    } else {
+      _uiPlaying = false;
+      _updateWakelock(false);
+      notifyListeners();
+    }
     final song = _queue[_currentIndex];
     _addToRecentlyPlayed(SongUtils.songId(song));
     await loadLyrics(song);
@@ -594,15 +689,66 @@ class MusicProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> play() async {
-    await _audioPlayer.play();
+  /// Bascule lecture/pause — réponse UI immédiate, sync audio groupée (clics rapides).
+  void togglePlayPause() {
+    _uiPlaying = !_uiPlaying;
     notifyListeners();
+    _schedulePlaybackSync();
+  }
+
+  Future<void> play() async {
+    if (_uiPlaying) return;
+    _uiPlaying = true;
+    notifyListeners();
+    await _applyUiPlayingState();
   }
 
   Future<void> pause() async {
-    await _audioPlayer.pause();
-    await savePlaybackState();
+    if (!_uiPlaying) return;
+    _uiPlaying = false;
     notifyListeners();
+    await _applyUiPlayingState();
+  }
+
+  void _schedulePlaybackSync() {
+    _playbackSyncTimer?.cancel();
+    _playbackSyncTimer = Timer(const Duration(milliseconds: 50), () {
+      _applyUiPlayingState();
+    });
+  }
+
+  Future<void> _applyUiPlayingState() async {
+    final shouldPlay = _uiPlaying;
+    _syncingPlayback = true;
+    try {
+      if (shouldPlay) {
+        await _updateWakelock(true);
+        await _audioPlayer.play();
+      } else {
+        await _audioPlayer.pause();
+        await savePlaybackState();
+        if (!_uiPlaying) await _updateWakelock(false);
+      }
+    } catch (e) {
+      debugPrint('playback sync: $e');
+      _uiPlaying = _audioPlayer.playing;
+      notifyListeners();
+    } finally {
+      _syncingPlayback = false;
+      await _updateWakelock(_uiPlaying);
+    }
+  }
+
+  Future<void> _updateWakelock(bool enable) async {
+    try {
+      if (enable) {
+        await WakelockPlus.enable();
+      } else {
+        await WakelockPlus.disable();
+      }
+    } catch (e) {
+      debugPrint('Wakelock error: $e');
+    }
   }
 
   void playNext() => _audioPlayer.seekToNext();
@@ -611,16 +757,12 @@ class MusicProvider extends ChangeNotifier {
   void setSleepTimer(Duration duration, {bool endOfTrack = false}) {
     _sleepTimer?.cancel();
     _endOfTrackSub?.cancel();
+    _sleepEndOfTrack = endOfTrack;
     if (endOfTrack) {
-      _endOfTrackSub = _audioPlayer.processingStateStream.listen((state) {
-        if (state == ProcessingState.completed) {
-          pause();
-          cancelSleepTimer();
-        }
-      });
       _sleepTimerEndsAt = null;
       _sleepTimerRemaining = null;
     } else {
+      _sleepEndOfTrack = false;
       _sleepTimerEndsAt = DateTime.now().add(duration);
       _sleepTimerRemaining = duration;
       _sleepTimer = Timer(duration, () {
@@ -632,6 +774,7 @@ class MusicProvider extends ChangeNotifier {
   }
 
   void cancelSleepTimer() {
+    _sleepEndOfTrack = false;
     _sleepTimer?.cancel();
     _endOfTrackSub?.cancel();
     _endOfTrackSub = null;
@@ -671,12 +814,30 @@ class MusicProvider extends ChangeNotifier {
 
   void updateSearchQuery(String query) {
     _searchQuery = query;
+    _invalidateFilteredCache();
     notifyListeners();
   }
 
   void setSongSort(SongSort sort) {
     _songSort = sort;
+    _sortOrder = sort.defaultOrder;
     _persistPref('song_sort', sort.index);
+    _persistBool('song_sort_desc', _sortOrder == SortOrder.descending);
+    _invalidateFilteredCache();
+    notifyListeners();
+  }
+
+  void toggleSortOrder() {
+    _sortOrder = _sortOrder == SortOrder.ascending ? SortOrder.descending : SortOrder.ascending;
+    _persistBool('song_sort_desc', _sortOrder == SortOrder.descending);
+    _invalidateFilteredCache();
+    notifyListeners();
+  }
+
+  void setSortOrder(SortOrder order) {
+    _sortOrder = order;
+    _persistBool('song_sort_desc', order == SortOrder.descending);
+    _invalidateFilteredCache();
     notifyListeners();
   }
 
@@ -691,6 +852,7 @@ class MusicProvider extends ChangeNotifier {
     _excludedFolders.add(path);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('excluded_folders', _excludedFolders.toList());
+    _invalidateFilteredCache();
     notifyListeners();
   }
 
@@ -698,6 +860,7 @@ class MusicProvider extends ChangeNotifier {
     _excludedFolders.remove(path);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('excluded_folders', _excludedFolders.toList());
+    _invalidateFilteredCache();
     notifyListeners();
   }
 
@@ -768,8 +931,12 @@ class MusicProvider extends ChangeNotifier {
   @override
   void dispose() {
     savePlaybackState();
+    _playbackSyncTimer?.cancel();
+    _playerStateSub?.cancel();
+    _playbackEventSub?.cancel();
     _sleepTimer?.cancel();
     _endOfTrackSub?.cancel();
+    WakelockPlus.disable();
     _audioPlayer.dispose();
     super.dispose();
   }
