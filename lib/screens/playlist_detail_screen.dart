@@ -1,5 +1,6 @@
 import 'package:donziker/providers/music_provider.dart';
-import 'package:donziker/widgets/song_list_tile.dart';
+import 'package:donziker/theme/theme_extensions.dart';
+import 'package:donziker/widgets/premium/premium_song_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
@@ -32,6 +33,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.dz.surface,
       appBar: AppBar(
         title: Text(widget.name),
         actions: [
@@ -48,7 +50,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               ? const Center(child: Text('Playlist vide — ajoutez des titres via ⋮'))
               : ListView.builder(
                   itemCount: _songs.length,
-                  itemBuilder: (context, i) => SongListTile(song: _songs[i], playlistContext: _songs, index: i),
+                  itemBuilder: (context, i) => PremiumSongTile(song: _songs[i], playlistContext: _songs, index: i),
                 ),
     );
   }

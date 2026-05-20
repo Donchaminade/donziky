@@ -1,6 +1,7 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/screens/home_screen.dart';
 import 'package:donziker/services/permission_service.dart';
+import 'package:donziker/theme/theme_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -60,7 +61,7 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.library_music, size: 48, color: Colors.deepPurpleAccent),
+        icon: Icon(Icons.library_music_rounded, size: 48, color: context.dzAccent),
         title: const Text('Accès à votre musique'),
         content: const Text(
           'DonZiker lit uniquement les fichiers déjà sur votre téléphone.\n\n'
@@ -135,8 +136,9 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.dz;
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: c.surface,
       body: Center(
         child: AnimatedOpacity(
           opacity: _logoVisible ? 1 : 0.4,
@@ -151,12 +153,12 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
                     const Icon(Icons.music_note, size: 120, color: Colors.white),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'DonZiker',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white),
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: c.primaryText),
               ),
               const SizedBox(height: 28),
-              const CircularProgressIndicator(color: Colors.deepPurpleAccent),
+              CircularProgressIndicator(color: c.accent),
             ],
           ),
         ),

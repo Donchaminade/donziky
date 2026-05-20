@@ -1,5 +1,6 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
+import 'package:donziker/theme/theme_extensions.dart';
 import 'package:donziker/utils/song_utils.dart';
 import 'package:donziker/widgets/circular_audio_progress.dart';
 import 'package:donziker/widgets/song_options_sheet.dart';
@@ -31,7 +32,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
           return const Scaffold(body: Center(child: Text('Aucune chanson en lecture')));
         }
 
-        final accent = theme.effectiveAccent(provider.dynamicAccentColor, useDynamic: provider.useDynamicAccent);
+        final accent = provider.useDynamicAccent
+            ? theme.effectiveAccent(provider.dynamicAccentColor, useDynamic: true)
+            : context.dzAccent;
+        final c = context.dz;
 
         return Scaffold(
           extendBodyBehindAppBar: true,
@@ -86,7 +90,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [accent.withValues(alpha: 0.55), Colors.black, Colors.black],
+                    colors: [accent.withValues(alpha: 0.55), c.surface, c.surface],
                   ),
                 ),
               ),
