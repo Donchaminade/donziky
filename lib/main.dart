@@ -1,13 +1,12 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
 import 'package:donziker/screens/home_screen.dart';
-import 'package:donziker/screens/onboarding_screen.dart';
+import 'package:donziker/screens/splash_permission_screen.dart';
 import 'package:donziker/theme/app_theme.dart';
+import 'package:donziker/widgets/app_lifecycle_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
@@ -23,15 +22,12 @@ Future<void> main() async {
     // Pause pour laisser les services se stabiliser
     await Future.delayed(const Duration(milliseconds: 300));
 
-    final prefs = await SharedPreferences.getInstance();
-    final bool onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
-
     final musicProvider = MusicProvider();
     final themeProvider = ThemeProvider();
 
     // Init provider et attendre un peu
     await musicProvider.init();
-    await Future.delayed(const Duration(milliseconds: 200));
+    await musicProvider.refreshPermissionStatus();
 
     runApp(
       MultiProvider(
@@ -39,7 +35,9 @@ Future<void> main() async {
           ChangeNotifierProvider.value(value: musicProvider),
           ChangeNotifierProvider.value(value: themeProvider),
         ],
-        child: MyApp(onboardingCompleted: onboardingCompleted),
+        child: AppLifecycleHandler(
+          child: MyApp(skipPermissionSplash: musicProvider.permissionGranted),
+        ),
       ),
     );
   } catch (e, stack) {
@@ -49,9 +47,9 @@ Future<void> main() async {
 }
 
 class MyApp extends StatelessWidget {
-  final bool onboardingCompleted;
+  final bool skipPermissionSplash;
 
-  const MyApp({super.key, required this.onboardingCompleted});
+  const MyApp({super.key, this.skipPermissionSplash = false});
 
   @override
   Widget build(BuildContext context) {
@@ -63,8 +61,9 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.lightTheme(themeProvider.accentColor),
           darkTheme: AppTheme.darkTheme(themeProvider.accentColor),
           themeMode: themeProvider.themeMode,
-          // On s'assure que l'onboarding ou Home ne se lancent qu'une fois tout prêt
-          home: onboardingCompleted ? const HomeScreen() : const OnboardingScreen(),
+          home: skipPermissionSplash
+              ? const HomeScreen()
+              : const SplashPermissionScreen(),
         );
       },
     );

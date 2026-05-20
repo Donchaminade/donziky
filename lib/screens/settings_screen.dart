@@ -1,3 +1,5 @@
+import 'package:donziker/models/song_sort.dart';
+import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,175 +10,122 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final accentColor = themeProvider.accentColor;
+    final musicProvider = Provider.of<MusicProvider>(context);
+    final accent = themeProvider.effectiveAccent(
+      musicProvider.dynamicAccentColor,
+      useDynamic: musicProvider.useDynamicAccent,
+    );
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('Paramètres', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              accentColor.withOpacity(0.1),
-              Colors.black,
-              Colors.black,
-            ],
+      appBar: AppBar(title: const Text('Paramètres')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _title('Apparence'),
+          SwitchListTile(
+            title: const Text('Mode sombre'),
+            value: themeProvider.themeMode == ThemeMode.dark,
+            onChanged: themeProvider.toggleTheme,
           ),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 40),
-          children: [
-            _buildGlassSection(
-              title: 'Apparence',
+          SwitchListTile(
+            title: const Text('Couleur depuis la pochette'),
+            subtitle: const Text('Sinon, couleur d\'accent choisie ci-dessous'),
+            value: musicProvider.useDynamicAccent,
+            onChanged: musicProvider.setUseDynamicAccent,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Wrap(
+              spacing: 10,
               children: [
-                SwitchListTile(
-                  title: const Text('Mode Sombre', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Activer ou désactiver le thème sombre', style: TextStyle(fontSize: 12)),
-                  value: themeProvider.themeMode == ThemeMode.dark,
-                  activeColor: accentColor,
-                  onChanged: (value) => themeProvider.toggleTheme(value),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Couleur d\'accentuation', style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          _buildColorOption(themeProvider, Colors.redAccent),
-                          _buildColorOption(themeProvider, Colors.blueAccent),
-                          _buildColorOption(themeProvider, Colors.greenAccent),
-                          _buildColorOption(themeProvider, Colors.purpleAccent),
-                          _buildColorOption(themeProvider, Colors.orangeAccent),
-                          _buildColorOption(themeProvider, Colors.pinkAccent),
-                        ],
-                      ),
-                    ],
+                Colors.redAccent,
+                Colors.blueAccent,
+                Colors.greenAccent,
+                Colors.purpleAccent,
+                Colors.orangeAccent,
+                Colors.pinkAccent,
+              ].map((c) => GestureDetector(
+                    onTap: () => themeProvider.updateAccentColor(c),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: c,
+                      child: themeProvider.accentColor == c ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+                    ),
+                  )).toList(),
+            ),
+          ),
+          const Divider(),
+          _title('Bibliothèque locale'),
+          ListTile(
+            title: const Text('Rescanner le téléphone'),
+            trailing: const Icon(Icons.refresh),
+            onTap: musicProvider.refreshLibrary,
+          ),
+          DropdownButtonFormField<SongSort>(
+            value: musicProvider.songSort,
+            decoration: const InputDecoration(labelText: 'Tri par défaut'),
+            items: SongSort.values.map((s) => DropdownMenuItem(value: s, child: Text(s.label))).toList(),
+            onChanged: (v) {
+              if (v != null) musicProvider.setSongSort(v);
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Masquer les sons courts'),
+            subtitle: const Text('Sonneries, notifications (< 10 s)'),
+            value: musicProvider.hideShortSounds,
+            onChanged: musicProvider.setHideShortSounds,
+          ),
+          if (musicProvider.excludedFolders.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text('Dossiers exclus', style: TextStyle(fontWeight: FontWeight.bold)),
+            ...musicProvider.excludedFolders.map((f) => ListTile(
+                  dense: true,
+                  title: Text(f, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => musicProvider.removeExcludedFolder(f),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildGlassSection(
-              title: 'À propos',
-              children: [
-                _buildSimpleSettingItem('Version', '1.2.0'),
-                _buildSimpleSettingItem('Développeur', 'DonChaminade'),
-                _buildSimpleSettingItem('Expérience', 'DonZiker Premium'),
-              ],
-            ),
+                )),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassSection({required String title, required List<Widget> children}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 8, bottom: 8),
-          child: Text(
-            title.toUpperCase(),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.white38, letterSpacing: 1.5),
+          SwitchListTile(
+            title: const Text('Mode karaoké'),
+            subtitle: const Text('Passe au morceau suivant quelques secondes avant la fin'),
+            value: musicProvider.karaokeMode,
+            onChanged: (_) => musicProvider.toggleKaraokeMode(),
           ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ListTile(
+            title: const Text('Anticipation karaoké (secondes)'),
+            trailing: DropdownButton<int>(
+              value: musicProvider.karaokeLeadSeconds,
+              items: [5, 8, 10, 12, 15]
+                  .map((s) => DropdownMenuItem(value: s, child: Text('$s s')))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) musicProvider.setKaraokeLeadSeconds(v);
+              },
+            ),
           ),
-          child: Column(
-            children: children,
+          const Divider(),
+          _title('Lecture'),
+          ListTile(
+            title: const Text('Reprendre la dernière lecture'),
+            subtitle: const Text('Automatique au démarrage si disponible'),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
+          const Divider(),
+          _title('À propos'),
+          ListTile(title: const Text('Version'), trailing: Text('1.2.0', style: TextStyle(color: accent))),
+          const ListTile(title: Text('Développeur'), trailing: Text('DonChaminade')),
+          const ListTile(
+            title: Text('DonZiker'),
+            subtitle: Text('Lecteur 100 % local — musique et vidéos de votre appareil uniquement.'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildColorOption(ThemeProvider provider, Color color) {
-    final isSelected = provider.accentColor == color;
-    return GestureDetector(
-      onTap: () => provider.updateAccentColor(color),
-      child: Container(
-        width: 45,
-        height: 45,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: isSelected ? Border.all(color: Colors.white, width: 3) : null,
-          boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: color.withOpacity(0.5),
-                blurRadius: 10,
-                spreadRadius: 2,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSimpleSettingItem(String title, String trailing) {
-    return ListTile(
-      title: Text(title),
-      trailing: Text(
-        trailing,
-        style: const TextStyle(color: Colors.grey),
-      ),
-    );
-  }
-
-  Widget _buildToggleSettingItem(
-    String title,
-    String description,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
-    return SwitchListTile(
-      title: Text(title),
-      subtitle: Text(description),
-      value: value,
-      onChanged: onChanged,
-      activeColor: Colors.redAccent,
-    );
-  }
-
-  Widget _buildDescriptionSettingItem(String title, String description) {
-    return ListTile(
-      title: Text(title),
-      subtitle: Text(description),
-      onTap: () {
-        // Handle item tap
-      },
-    );
-  }
+  Widget _title(String t) => Padding(
+        padding: const EdgeInsets.only(bottom: 8, top: 8),
+        child: Text(t.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white54)),
+      );
 }

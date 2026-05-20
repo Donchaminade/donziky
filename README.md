@@ -24,10 +24,15 @@
 - **Thèmes Dynamiques** : Basculez entre le mode Clair et Sombre.
 - **Couleurs d'Accentuation** : Personnalisez l'application avec votre couleur préférée (Rouge, Bleu, Vert, etc.).
 
-### 📂 Gestion de Bibliothèque
-- **Scan Automatique** : Détection automatique des fichiers audio locaux.
-- **Recherche Instantanée** : Trouvez vos titres et artistes en temps réel.
-- **Favoris & Historique** : Accédez rapidement à vos morceaux préférés et à vos dernières écoutes.
+### 📂 Gestion de Bibliothèque (100 % locale)
+- **Aucune musique intégrée** : DonZiker lit uniquement les fichiers déjà sur votre téléphone.
+- **Scan & Rescan** : Détection automatique des fichiers audio locaux.
+- **Vues** : Chansons, Albums, Artistes, Dossiers, Genres, Playlists personnalisées, Vidéos.
+- **Playlists SQLite** : Créer, renommer, supprimer, ajouter des titres.
+- **Recherche** : Titre, artiste, album, chemin.
+- **Favoris, Historique, Stats** : Données locales uniquement.
+- **Paroles `.lrc`** : Fichier du même nom à côté du morceau sur l'appareil.
+- **Exclusion de dossiers** : Masquer WhatsApp, notifications, etc.
 
 ---
 

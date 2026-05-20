@@ -1,8 +1,12 @@
 import 'dart:ui';
+import 'package:donziker/providers/music_provider.dart';
+import 'package:donziker/providers/theme_provider.dart';
+import 'package:donziker/services/platform_media_service.dart';
+import 'package:donziker/utils/song_utils.dart';
+import 'package:donziker/widgets/add_to_playlist_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
-import '../providers/music_provider.dart';
 
 class SongOptionsSheet extends StatelessWidget {
   final SongModel song;
@@ -12,8 +16,10 @@ class SongOptionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<MusicProvider>(context);
-    final isFavorite = provider.isFavorite(song.id.toString());
-    final accentColor = provider.currentAccentColor;
+    final theme = Provider.of<ThemeProvider>(context);
+    final songId = SongUtils.songId(song);
+    final isFavorite = provider.isFavorite(songId);
+    final accent = theme.effectiveAccent(provider.dynamicAccentColor, useDynamic: provider.useDynamicAccent);
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
@@ -22,24 +28,14 @@ class SongOptionsSheet extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.85),
+            color: Colors.black.withValues(alpha: 0.85),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Pull bar
-              Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 25),
-              // Song Info Header
+              Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   ClipRRect(
@@ -49,12 +45,7 @@ class SongOptionsSheet extends StatelessWidget {
                       type: ArtworkType.AUDIO,
                       artworkWidth: 60,
                       artworkHeight: 60,
-                      nullArtworkWidget: Container(
-                        width: 60,
-                        height: 60,
-                        color: Colors.white10,
-                        child: const Icon(Icons.music_note, color: Colors.white30),
-                      ),
+                      nullArtworkWidget: const Icon(Icons.music_note, size: 40),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -62,74 +53,77 @@ class SongOptionsSheet extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          song.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          song.artist ?? "Artiste inconnu",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        Text(song.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(song.artist ?? 'Artiste inconnu', style: TextStyle(color: Colors.white.withValues(alpha: 0.5)), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
-              // Options
-              _buildOption(
+              const SizedBox(height: 20),
+              _option(
                 icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                label: isFavorite ? "Retirer des favoris" : "Ajouter aux favoris",
-                color: isFavorite ? accentColor : Colors.white,
+                label: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
+                color: isFavorite ? accent : Colors.white,
                 onTap: () {
-                  provider.toggleFavorite(song.id.toString());
+                  provider.toggleFavorite(songId);
                   Navigator.pop(context);
                 },
               ),
-              _buildOption(
-                icon: Icons.repeat_one_rounded,
-                label: "Jouer en boucle cette chanson",
-                color: provider.repeatMode == RepeatMode.one ? accentColor : Colors.white,
+              _option(
+                icon: Icons.playlist_add_rounded,
+                label: 'Ajouter à une playlist',
                 onTap: () {
-                  // On forcer le mode boucle 1
-                  provider.forceRepeatOne(); 
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Mode répétition de la chanson activé"),
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => AddToPlaylistSheet(song: song),
                   );
                 },
               ),
-              _buildOption(
-                icon: Icons.playlist_add_rounded,
-                label: "Ajouter à une playlist",
+              _option(
+                icon: Icons.ring_volume,
+                label: 'Définir comme sonnerie',
+                onTap: () async {
+                  Navigator.pop(context);
+                  final ok = await PlatformMediaService.setAsRingtone(song.data);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok
+                            ? 'Sonnerie mise à jour'
+                            : 'Impossible de définir la sonnerie (Android uniquement)'),
+                      ),
+                    );
+                  }
+                },
+              ),
+              _option(
+                icon: Icons.repeat_one_rounded,
+                label: 'Jouer en boucle',
                 onTap: () {
-                  // TODO: Playlist logic
+                  provider.forceRepeatOne();
                   Navigator.pop(context);
                 },
               ),
-              _buildOption(
-                icon: Icons.info_outline_rounded,
-                label: "Informations sur le fichier",
-                onTap: () {
-                   Navigator.pop(context);
-                   _showFileInfo(context, song);
+              _option(
+                icon: Icons.folder_off_outlined,
+                label: 'Exclure le dossier parent',
+                onTap: () async {
+                  await provider.addExcludedFolder(SongUtils.folderPath(song));
+                  if (context.mounted) Navigator.pop(context);
                 },
               ),
-              const SizedBox(height: 20),
+              _option(
+                icon: Icons.info_outline_rounded,
+                label: 'Informations fichier',
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFileInfo(context, song);
+                },
+              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -137,62 +131,43 @@ class SongOptionsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildOption({
-    required IconData icon,
-    required String label,
-    Color color = Colors.white,
-    required VoidCallback onTap,
-  }) {
+  Widget _option({required IconData icon, required String label, Color color = Colors.white, required VoidCallback onTap}) {
     return ListTile(
-      leading: Icon(icon, color: color.withOpacity(0.8), size: 28),
-      title: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+      leading: Icon(icon, color: color),
+      title: Text(label, style: TextStyle(color: color)),
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
     );
   }
 
   void _showFileInfo(BuildContext context, SongModel song) {
-     showDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text("Détails", style: TextStyle(color: Colors.white)),
+        title: const Text('Détails'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _detailRow("Titre", song.title),
-            _detailRow("Artiste", song.artist ?? "Inconnu"),
-            _detailRow("Album", song.album ?? "Inconnu"),
-            _detailRow("Format", song.fileExtension),
-            _detailRow("Dossier", song.data.substring(0, song.data.lastIndexOf('/'))),
+            _row('Titre', song.title),
+            _row('Artiste', song.artist ?? 'Inconnu'),
+            _row('Album', song.album ?? 'Inconnu'),
+            _row('Genre', song.genre ?? '—'),
+            _row('Format', song.fileExtension),
+            _row('Durée', '${(song.duration ?? 0) ~/ 1000}s'),
+            _row('Chemin', song.data),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK")),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
       ),
     );
   }
 
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(text: "$label: ", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white70)),
-            TextSpan(text: value, style: const TextStyle(color: Colors.white)),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _row(String k, String v) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: RichText(text: TextSpan(style: const TextStyle(color: Colors.white), children: [
+          TextSpan(text: '$k: ', style: const TextStyle(fontWeight: FontWeight.bold)),
+          TextSpan(text: v),
+        ])),
+      );
 }

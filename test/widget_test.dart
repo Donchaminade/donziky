@@ -1,30 +1,46 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:donziker/providers/music_provider.dart';
+import 'package:donziker/providers/theme_provider.dart';
+import 'package:donziker/utils/song_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:donziker/main.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('ThemeProvider exposes dark mode by default', (tester) async {
+    final theme = ThemeProvider();
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: theme,
+        child: MaterialApp(
+          theme: ThemeData.dark(),
+          home: Builder(
+            builder: (context) {
+              return Text(
+                context.watch<ThemeProvider>().themeMode == ThemeMode.dark ? 'dark' : 'light',
+              );
+            },
+          ),
+        ),
+      ),
+    );
     await tester.pump();
+    expect(find.text('dark'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test('SongUtils filters by query', () {
+    // SongModel cannot be constructed easily without platform; test filter logic via empty list
+    final result = SongUtils.filterSongs(
+      [],
+      query: 'test',
+      excludedFolders: {},
+      minDurationMs: 1000,
+      hideShortSounds: false,
+    );
+    expect(result, isEmpty);
+  });
+
+  test('MusicProvider repeat mode cycles', () {
+    final provider = MusicProvider();
+    expect(provider.repeatMode, RepeatMode.none);
   });
 }

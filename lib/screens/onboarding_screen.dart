@@ -7,62 +7,56 @@ import 'package:shared_preferences/shared_preferences.dart';
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
 
-  Future<void> _completeOnboarding(BuildContext context) async {
+  Future<void> _complete(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_completed', true);
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+    if (context.mounted) {
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<MusicProvider>(
-      builder: (context, musicProvider, child) {
+      builder: (context, musicProvider, _) {
         if (musicProvider.permissionGranted) {
-          // Use a post-frame callback to avoid calling setState during a build.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _completeOnboarding(context);
-          });
+          WidgetsBinding.instance.addPostFrameCallback((_) => _complete(context));
         }
 
         return Scaffold(
           backgroundColor: const Color(0xFF121212),
-          body: Center(
+          body: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(28),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Image.asset('assets/images/don.png', height: 120),
-                  const SizedBox(height: 48),
+                children: [
+                  const Icon(Icons.library_music, size: 100, color: Colors.deepPurpleAccent),
+                  const SizedBox(height: 32),
                   const Text(
-                    'Welcome to Donziker',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    'Bienvenue sur DonZiker',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   const Text(
-                    'To find and play music and videos from your device, we need access to your storage.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                    ),
+                    'DonZiker ne contient aucune musique : l\'application lit uniquement les fichiers audio et vidéo déjà présents sur votre téléphone.',
+                    style: TextStyle(fontSize: 16, color: Colors.white70, height: 1.4),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Vos fichiers restent sur l\'appareil. Rien n\'est envoyé sur Internet.',
+                    style: TextStyle(fontSize: 14, color: Colors.white54),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                      textStyle: const TextStyle(fontSize: 18),
-                    ),
+                  FilledButton(
                     onPressed: () => musicProvider.checkAndRequestPermissions(),
-                    child: const Text('Grant Permissions'),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      child: Text('Autoriser l\'accès aux médias'),
+                    ),
                   ),
                 ],
               ),

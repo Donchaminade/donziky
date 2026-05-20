@@ -33,7 +33,11 @@ class ThemeProvider extends ChangeNotifier {
   void updateAccentColor(Color color) async {
     _accentColor = color;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('accent_color', color.value);
+    await prefs.setInt('accent_color', color.toARGB32());
     notifyListeners();
+  }
+
+  Color effectiveAccent(Color dynamicColor, {bool useDynamic = false}) {
+    return useDynamic ? dynamicColor : _accentColor;
   }
 }
