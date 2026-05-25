@@ -1,5 +1,4 @@
 import 'package:donziker/providers/music_provider.dart';
-import 'package:donziker/services/permission_service.dart';
 import 'package:donziker/providers/theme_provider.dart';
 import 'package:donziker/screens/wow_splash_screen.dart';
 import 'package:donziker/theme/app_theme.dart';
@@ -28,12 +27,8 @@ Future<void> main() async {
     final musicProvider = MusicProvider();
     final themeProvider = ThemeProvider();
 
-    // Init provider et attendre un peu
+    // Préférences et lecteur uniquement — scan média après le splash (UI réactive).
     await musicProvider.init();
-    await musicProvider.refreshPermissionStatus();
-    if (musicProvider.permissionGranted) {
-      await PermissionService().ensureNotificationPermission();
-    }
 
     runApp(
       MultiProvider(

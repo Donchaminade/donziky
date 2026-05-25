@@ -20,6 +20,15 @@ class _MainShellState extends State<MainShell> {
   int _index = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<MusicProvider>().ensureLibraryLoaded();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.dz;
 

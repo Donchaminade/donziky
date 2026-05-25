@@ -430,7 +430,6 @@ class MusicProvider extends ChangeNotifier {
   Future<void> _tryResumePlayback() async {
     final prefs = await SharedPreferences.getInstance();
     final positionMs = prefs.getInt('resume_position_ms') ?? 0;
-    final wasPlaying = prefs.getBool('resume_was_playing') ?? false;
     final queueIds = prefs.getStringList('resume_queue_ids');
     final queueIndex = prefs.getInt('resume_queue_index') ?? 0;
 
@@ -460,21 +459,13 @@ class MusicProvider extends ChangeNotifier {
     if (restoreQueue.isEmpty) return;
 
     final index = queueIndex.clamp(0, restoreQueue.length - 1);
-    await setQueue(restoreQueue, index, autoPlay: wasPlaying);
+    // Toujours en pause au redémarrage : l'utilisateur choisit de reprendre depuis l'accueil.
+    await setQueue(restoreQueue, index, autoPlay: false);
     if (positionMs > 0) {
       await _audioPlayer.seek(Duration(milliseconds: positionMs));
     }
-  }
-
-  Future<void> refreshPermissionStatus() async {
-    if (await _permissions.hasAudioAccess()) {
-      _permissionGranted = true;
-      await loadMedia();
-      await _markMediaGranted();
-    } else {
-      _permissionGranted = false;
-    }
-    notifyListeners();
+    await prefs.setBool('resume_was_playing', false);
+    _sessionRestored = true;
   }
 
   Future<void> checkAndRequestPermissions() async {
@@ -509,6 +500,28 @@ class MusicProvider extends ChangeNotifier {
   }
 
   bool _isBusy = false;
+  bool _sessionRestored = false;
+
+  /// Vérifie l'accès média sans scanner la bibliothèque (léger pour le splash).
+  Future<void> refreshPermissionStatus({bool loadLibrary = true}) async {
+    if (await _permissions.hasAudioAccess()) {
+      _permissionGranted = true;
+      if (loadLibrary) {
+        await loadMedia();
+      }
+      await _markMediaGranted();
+    } else {
+      _permissionGranted = false;
+    }
+    notifyListeners();
+  }
+
+  /// Charge la bibliothèque si nécessaire (ex. après navigation vers l'accueil).
+  Future<void> ensureLibraryLoaded() async {
+    if (!_permissionGranted) return;
+    if (_librarySongs.isNotEmpty && _sessionRestored) return;
+    await loadMedia();
+  }
 
   Future<void> loadMedia({int retryCount = 0}) async {
     if (!_permissionGranted || _isBusy) return;
@@ -532,7 +545,9 @@ class MusicProvider extends ChangeNotifier {
       _invalidateFilteredCache();
       await _loadVideosIfAllowed();
       await _loadTopPlayed();
-      await _tryResumePlayback();
+      if (!_sessionRestored) {
+        await _tryResumePlayback();
+      }
     } catch (e) {
       debugPrint('Error loading media: $e');
       if (e.toString().contains('database is locked') && retryCount < 3) {

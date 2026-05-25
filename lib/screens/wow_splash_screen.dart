@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:donziker/providers/music_provider.dart';
@@ -10,8 +11,11 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-/// Durée totale du splash à l'ouverture (modifier ici : 5000 ou 7000 ms).
-const kSplashDuration = Duration(seconds: 5);
+/// Splash court pour les utilisateurs qui ont déjà autorisé l'accès média.
+const kSplashDurationReturning = Duration(milliseconds: 2200);
+
+/// Splash un peu plus long à la première utilisation.
+const kSplashDurationFirstLaunch = Duration(milliseconds: 3200);
 
 /// Splash d'ouverture premium — animations, puis accueil ou permissions.
 class WowSplashScreen extends StatefulWidget {
@@ -45,7 +49,7 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
 
     _intro = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: (kSplashDuration.inMilliseconds * 0.55).round()),
+      duration: Duration(milliseconds: (kSplashDurationReturning.inMilliseconds * 0.55).round()),
     );
     _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
     _orbit = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
@@ -69,28 +73,40 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
     );
 
     _intro.forward();
-    _launch();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _launch());
   }
 
   Future<void> _launch() async {
     final permissionService = PermissionService();
     final music = context.read<MusicProvider>();
+    final returningUser = await MusicProvider.wasMediaGrantedBefore();
+    final splashDuration =
+        returningUser ? kSplashDurationReturning : kSplashDurationFirstLaunch;
 
-    final bootstrap = Future.wait([
-      Future.delayed(kSplashDuration),
-      () async {
-        await music.refreshPermissionStatus();
-        if (music.permissionGranted) {
-          await permissionService.ensureNotificationPermission();
-        }
-      }(),
-    ]);
+    _intro.duration = Duration(
+      milliseconds: (splashDuration.inMilliseconds * 0.55).round(),
+    );
 
-    await bootstrap;
+    try {
+      await Future.wait([
+        Future.delayed(splashDuration),
+        music.refreshPermissionStatus(loadLibrary: false),
+      ]).timeout(
+        splashDuration + const Duration(seconds: 4),
+        onTimeout: () => <void>[],
+      );
+    } catch (_) {
+      // Ne pas bloquer la navigation si la vérif permission échoue.
+    }
 
     if (!mounted || _navigated) return;
     _goHome = music.permissionGranted;
     _navigate();
+
+    if (_goHome) {
+      unawaited(permissionService.ensureNotificationPermission());
+      unawaited(music.ensureLibraryLoaded());
+    }
   }
 
   void _navigate() {
