@@ -547,6 +547,33 @@ class MusicProvider extends ChangeNotifier {
 
   Future<Map<String, int>> getListeningSummary() => stats.summary();
 
+  /// Fraction 0–1 utilisée seulement par les captures, quand aucun
+  /// moteur audio n'est branché. Nulle en usage réel.
+  @visibleForTesting
+  double? previewProgress;
+
+  double resolvedProgress({
+    required Duration position,
+    required Duration duration,
+  }) {
+    final seeded = previewProgress;
+    if (seeded != null) return seeded.clamp(0.0, 1.0);
+    if (duration.inMilliseconds <= 0) return 0;
+    return (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+  }
+
+  (Duration, Duration) resolvedClock({
+    required Duration position,
+    required Duration duration,
+    required int songMs,
+  }) {
+    final seeded = previewProgress;
+    if (seeded != null && songMs > 0) {
+      return (Duration(milliseconds: (songMs * seeded).round()), Duration(milliseconds: songMs));
+    }
+    return (position, duration);
+  }
+
   @visibleForTesting
   void seedPreview({
     List<SongModel> songs = const [],
@@ -559,8 +586,10 @@ class MusicProvider extends ChangeNotifier {
     bool permissionGranted = true,
     SongModel? current,
     bool playing = false,
+    double? previewProgress,
   }) {
     _preview = true;
+    this.previewProgress = previewProgress;
     _sessionRestored = true;
     library.permissionGranted = permissionGranted;
     library.songs = List<SongModel>.from(songs);

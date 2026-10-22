@@ -79,6 +79,7 @@ void main() {
       playlistSongs: {'pl1': songs.take(3).toList()},
       current: songs.first,
       playing: false,
+      previewProgress: 0.38,
     );
   });
 
@@ -118,6 +119,8 @@ void main() {
     await shoot('07-reglages', const SettingsScreen());
     await shoot('08-stats', const StatsScreen());
     await shoot('09-lecteur', const PlayerScreen());
+    await shoot('24-lecteur-circulaire', const PlayerScreen());
+    await shoot('25-themes', const SettingsScreen());
     await shoot('10-playlists', const PlaylistsScreen());
     await shoot('11-detail-playlist', const PlaylistDetailScreen(playlistId: 'pl1', name: 'Dimanche'));
     await shoot('12-morceaux', const SongsScreen());
@@ -143,11 +146,14 @@ void main() {
     } catch (_) {}
     await _capture(tester, '${dir.path}/23-accueil-sombre.png');
 
-    expect(File('${dir.path}/04-accueil.png').existsSync(), isTrue);
-    final bytes = File('${dir.path}/04-accueil.png').readAsBytesSync();
-    final data = bytes.buffer.asByteData(bytes.offsetInBytes, bytes.length);
-    expect(data.getUint32(16), 780);
-    expect(data.getUint32(20), 1688);
+    for (final name in ['04-accueil', '24-lecteur-circulaire', '25-themes']) {
+      final file = File('${dir.path}/$name.png');
+      expect(file.existsSync(), isTrue, reason: name);
+      final bytes = file.readAsBytesSync();
+      final data = bytes.buffer.asByteData(bytes.offsetInBytes, bytes.length);
+      expect(data.getUint32(16), 780, reason: name);
+      expect(data.getUint32(20), 1688, reason: name);
+    }
   }, timeout: const Timeout(Duration(minutes: 4)));
 }
 

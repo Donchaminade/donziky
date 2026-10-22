@@ -10,15 +10,17 @@ import 'package:provider/provider.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  static const _accentPresets = [
-    Color(0xFFFF375F),
-    Color(0xFF0A84FF),
-    Color(0xFF30D158),
-    Color(0xFFBF5AF2),
-    Color(0xFFFF9F0A),
-    Color(0xFFFF6482),
-    Color(0xFF64D2FF),
-    Color(0xFFFF453A),
+  /// Couleurs d'accent de master (`d29b30a` / `f98142f`), après les 6
+  /// `Colors.*Accent` de `dbf13fb`.
+  static const _accentPresets = <(String, Color)>[
+    ('Rose', Color(0xFFFF375F)),
+    ('Bleu', Color(0xFF0A84FF)),
+    ('Vert', Color(0xFF30D158)),
+    ('Violet', Color(0xFFBF5AF2)),
+    ('Orange', Color(0xFFFF9F0A)),
+    ('Rose clair', Color(0xFFFF6482)),
+    ('Cyan', Color(0xFF64D2FF)),
+    ('Rouge', Color(0xFFFF453A)),
   ];
 
   @override
@@ -59,8 +61,27 @@ class SettingsScreen extends StatelessWidget {
                           trailing: Icon(Icons.edit_rounded, color: c.secondaryText),
                           onTap: () => _editName(context, themeProvider),
                         ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Thèmes',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.secondaryText),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                          child: _ThemeGrid(
+                            theme: themeProvider,
+                            music: musicProvider,
+                            isDark: isDark,
+                          ),
+                        ),
                         _SettingTile(
                           title: 'Mode sombre',
+                          subtitle: 'Pour les thèmes classiques',
                           trailing: Switch.adaptive(
                             value: isDark,
                             activeThumbColor: AppTheme.ink,
@@ -69,15 +90,13 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ),
                         _SettingTile(
-                          title: 'Thème Tega',
-                          subtitle: 'Clair citron, cartes blanches',
+                          title: 'Lecteur circulaire',
+                          subtitle: 'Pochette ronde et arc de progression',
                           trailing: Switch.adaptive(
-                            value: themeProvider.isTega,
+                            value: themeProvider.circularPlayer,
                             activeThumbColor: AppTheme.ink,
                             activeTrackColor: AppTheme.lime,
-                            onChanged: (v) => themeProvider.setVisualStyle(
-                              v ? AppVisualStyle.tega : AppVisualStyle.classic,
-                            ),
+                            onChanged: themeProvider.setCircularPlayer,
                           ),
                         ),
                         _SettingTile(
@@ -89,52 +108,6 @@ class SettingsScreen extends StatelessWidget {
                             onChanged: themeProvider.setDisableAnimations,
                           ),
                         ),
-                        if (!themeProvider.isTega) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Ancien thème — couleur d\'accent',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.secondaryText),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: _accentPresets.map((color) {
-                              final selected = themeProvider.accentColor.toARGB32() == color.toARGB32();
-                              return GestureDetector(
-                                onTap: () => themeProvider.updateAccentColor(color),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                    border: selected ? Border.all(color: c.primaryText, width: 3) : null,
-                                  ),
-                                  child: selected ? Icon(Icons.check_rounded, color: c.scheme.onPrimary, size: 22) : null,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          _SettingTile(
-                            title: 'Couleur dynamique',
-                            subtitle: 'Teinte l\'ancien thème depuis la pochette',
-                            trailing: Switch.adaptive(
-                              value: musicProvider.useDynamicAccent,
-                              activeThumbColor: AppTheme.ink,
-                              activeTrackColor: AppTheme.lime,
-                              onChanged: musicProvider.setUseDynamicAccent,
-                            ),
-                          ),
-                        ] else
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                            child: Text(
-                              'Accent citron fixe. Le thème classique et la couleur dynamique restent disponibles ici.',
-                              style: TextStyle(fontSize: 12, color: c.secondaryText, height: 1.35),
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -267,6 +240,128 @@ class SettingsScreen extends StatelessWidget {
       await theme.setDisplayName(name);
     }
   }
+}
+
+class _ThemeGrid extends StatelessWidget {
+  final ThemeProvider theme;
+  final MusicProvider music;
+  final bool isDark;
+
+  const _ThemeGrid({required this.theme, required this.music, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.dz;
+    final options = <_ThemeChip>[
+      _ThemeChip(
+        label: 'Tega clair',
+        colors: const [AppTheme.lime, AppTheme.canvas],
+        selected: theme.isTega && !isDark,
+        onTap: () {
+          theme.selectTega(dark: false);
+          music.setUseDynamicAccent(false);
+        },
+      ),
+      _ThemeChip(
+        label: 'Tega sombre',
+        colors: const [AppTheme.lime, AppTheme.darkBg],
+        selected: theme.isTega && isDark,
+        onTap: () {
+          theme.selectTega(dark: true);
+          music.setUseDynamicAccent(false);
+        },
+      ),
+      _ThemeChip(
+        label: 'Classique dynamique',
+        colors: const [Color(0xFF8EC8F5), Color(0xFFFF375F)],
+        selected: !theme.isTega && music.useDynamicAccent,
+        onTap: () {
+          theme.setVisualStyle(AppVisualStyle.classic);
+          music.setUseDynamicAccent(true);
+        },
+      ),
+      for (final preset in SettingsScreen._accentPresets)
+        _ThemeChip(
+          label: preset.$1,
+          colors: [preset.$2, preset.$2],
+          selected: !theme.isTega && !music.useDynamicAccent && theme.accentColor.toARGB32() == preset.$2.toARGB32(),
+          onTap: () {
+            theme.selectClassicAccent(preset.$2);
+            music.setUseDynamicAccent(false);
+          },
+        ),
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final option in options)
+          SizedBox(
+            width: 108,
+            child: Material(
+              color: option.selected ? AppTheme.lime : (c.isDark ? AppTheme.darkCard : Colors.white),
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: option.onTap,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          for (final color in option.colors.take(2))
+                            Container(
+                              width: 16,
+                              height: 16,
+                              margin: const EdgeInsets.only(right: 4),
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: option.selected ? AppTheme.ink : c.primaryText.withValues(alpha: 0.2)),
+                              ),
+                            ),
+                          if (option.selected) const Spacer(),
+                          if (option.selected) const Icon(Icons.check_rounded, size: 16, color: AppTheme.ink),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        option.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.15,
+                          fontWeight: FontWeight.w700,
+                          color: option.selected ? AppTheme.ink : c.primaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ThemeChip {
+  final String label;
+  final List<Color> colors;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ThemeChip({
+    required this.label,
+    required this.colors,
+    required this.selected,
+    required this.onTap,
+  });
 }
 
 class _Group extends StatelessWidget {

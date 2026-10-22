@@ -8,6 +8,7 @@ class ThemeProvider extends ChangeNotifier {
   Color _accentColor = const Color(0xFFFF375F);
   AppVisualStyle _visualStyle = AppVisualStyle.tega;
   bool _disableAnimations = false;
+  bool _circularPlayer = true;
   String _displayName = 'Tega';
 
   late final Future<void> ready;
@@ -16,6 +17,7 @@ class ThemeProvider extends ChangeNotifier {
   Color get accentColor => _accentColor;
   AppVisualStyle get visualStyle => _visualStyle;
   bool get disableAnimations => _disableAnimations;
+  bool get circularPlayer => _circularPlayer;
   String get displayName => _displayName.trim().isEmpty ? 'Tega' : _displayName.trim();
   bool get isTega => _visualStyle == AppVisualStyle.tega;
 
@@ -35,6 +37,7 @@ class ThemeProvider extends ChangeNotifier {
       final style = prefs.getString('visual_style');
       _visualStyle = style == 'classic' ? AppVisualStyle.classic : AppVisualStyle.tega;
       _disableAnimations = prefs.getBool('disable_animations') ?? false;
+      _circularPlayer = prefs.getBool('circular_player') ?? true;
       final name = prefs.getString('display_name');
       if (name != null && name.trim().isNotEmpty) {
         _displayName = name.trim();
@@ -63,6 +66,31 @@ class ThemeProvider extends ChangeNotifier {
     _visualStyle = style;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('visual_style', style == AppVisualStyle.classic ? 'classic' : 'tega');
+    notifyListeners();
+  }
+
+  Future<void> setCircularPlayer(bool value) async {
+    _circularPlayer = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('circular_player', value);
+    notifyListeners();
+  }
+
+  Future<void> selectTega({required bool dark}) async {
+    _visualStyle = AppVisualStyle.tega;
+    _themeMode = dark ? ThemeMode.dark : ThemeMode.light;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('visual_style', 'tega');
+    await prefs.setBool('is_dark', dark);
+    notifyListeners();
+  }
+
+  Future<void> selectClassicAccent(Color color) async {
+    _visualStyle = AppVisualStyle.classic;
+    _accentColor = color;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('visual_style', 'classic');
+    await prefs.setInt('accent_color', color.toARGB32());
     notifyListeners();
   }
 

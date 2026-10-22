@@ -1,7 +1,9 @@
 import 'package:donziker/providers/music_provider.dart';
+import 'package:donziker/providers/theme_provider.dart';
 import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/theme/theme_extensions.dart';
 import 'package:donziker/utils/song_utils.dart';
+import 'package:donziker/widgets/circular_audio_progress.dart';
 import 'package:donziker/widgets/premium/glass_surface.dart';
 import 'package:donziker/widgets/premium/player_controls.dart';
 import 'package:donziker/widgets/song_options_sheet.dart';
@@ -64,7 +66,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     const Spacer(flex: 2),
                     _artwork(provider, song, c),
                     const SizedBox(height: 18),
-                    _seekBar(provider, c),
+                    if (context.watch<ThemeProvider>().circularPlayer)
+                      _timeRow(provider, c)
+                    else
+                      _seekBar(provider, c),
                     const Spacer(),
                     _songInfo(provider, song, c),
                     if (provider.karaokeMode) ...[
@@ -143,6 +148,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _artwork(MusicProvider provider, SongModel song, DzColors c) {
+    final circular = context.watch<ThemeProvider>().circularPlayer;
+    if (circular) return _circularArtwork(provider, song, c);
     final size = MediaQuery.sizeOf(context).width - 64;
     return Hero(
       tag: 'albumArt',
@@ -163,20 +170,96 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
-            child: QueryArtworkWidget(
-              id: song.id,
-              type: ArtworkType.AUDIO,
-              artworkWidth: 900,
-              artworkHeight: 900,
-              artworkFit: BoxFit.cover,
-              nullArtworkWidget: Container(
-                color: c.card,
-                child: Icon(Icons.music_note_rounded, size: 80, color: c.tertiaryText),
-              ),
-            ),
+            child: _cover(song, c, radius: 28),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _circularArtwork(MusicProvider provider, SongModel song, DzColors c) {
+    return StreamBuilder<Duration>(
+      stream: provider.audioPlayer.positionStream,
+      builder: (context, snap) {
+        final pos = snap.data ?? Duration.zero;
+        final dur = provider.audioPlayer.duration ?? Duration.zero;
+        final songMs = song.duration ?? 0;
+        final progress = provider.resolvedProgress(position: pos, duration: dur);
+        final size = MediaQuery.sizeOf(context).width * 0.74;
+        final ring = context.watch<ThemeProvider>().isTega ? AppTheme.lime : c.accent;
+        return Hero(
+          tag: 'albumArt',
+          child: CircularAudioProgress(
+            progress: progress.clamp(0.0, 1.0),
+            size: size,
+            strokeWidth: 7,
+            activeColor: ring,
+            inactiveColor: c.primaryText.withValues(alpha: 0.12),
+            onSeek: (p) {
+              final base = dur.inMilliseconds > 0 ? dur.inMilliseconds : songMs;
+              if (base > 0) {
+                provider.audioPlayer.seek(Duration(milliseconds: (base * p).toInt()));
+              }
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: ring.withValues(alpha: 0.35),
+                    blurRadius: 40,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: SizedBox(
+                  width: size - 30,
+                  height: size - 30,
+                  child: _cover(song, c, radius: size),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _cover(SongModel song, DzColors c, {required double radius}) {
+    return QueryArtworkWidget(
+      id: song.id,
+      type: ArtworkType.AUDIO,
+      artworkWidth: 900,
+      artworkHeight: 900,
+      artworkFit: BoxFit.cover,
+      artworkBorder: BorderRadius.circular(radius),
+      nullArtworkWidget: Container(
+        color: c.card,
+        child: Icon(Icons.music_note_rounded, size: 80, color: c.tertiaryText),
+      ),
+    );
+  }
+
+  Widget _timeRow(MusicProvider provider, DzColors c) {
+    return StreamBuilder<Duration>(
+      stream: provider.audioPlayer.positionStream,
+      builder: (context, snap) {
+        final pos = snap.data ?? Duration.zero;
+        final dur = provider.audioPlayer.duration ?? Duration.zero;
+        final songMs = provider.currentSong?.duration ?? 0;
+        final (shownPos, shownDur) = provider.resolvedClock(position: pos, duration: dur, songMs: songMs);
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(_format(shownPos), style: TextStyle(color: c.secondaryText, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(_format(shownDur), style: TextStyle(color: c.secondaryText, fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        );
+      },
     );
   }
 
