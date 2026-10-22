@@ -43,6 +43,7 @@ class MusicProvider extends ChangeNotifier {
   bool _sessionRestored = false;
   bool _preview = false;
   bool _listenersReady = false;
+  int _accentToken = 0;
 
   MusicProvider({DatabaseService? database})
       : stats = ListeningStatsService(database ?? DatabaseService()) {
@@ -202,16 +203,17 @@ class MusicProvider extends ChangeNotifier {
   }
 
   Future<void> _updateDynamicAccent(int songId) async {
+    final token = ++_accentToken;
     try {
       final artwork = await _artworkQuery.queryArtwork(songId, ArtworkType.AUDIO, size: 200);
-      if (artwork != null) {
-        final palette = await PaletteGenerator.fromImageProvider(MemoryImage(artwork));
-        final color = palette.dominantColor?.color ?? palette.vibrantColor?.color ?? _artworkTint;
-        _artworkTint = color;
-        _hasExtractedAccent = true;
-        if (_useDynamicAccent) _dynamicAccentColor = color;
-        notifyListeners();
-      }
+      if (artwork == null || token != _accentToken) return;
+      final palette = await PaletteGenerator.fromImageProvider(MemoryImage(artwork));
+      if (token != _accentToken) return;
+      final color = palette.dominantColor?.color ?? palette.vibrantColor?.color ?? _artworkTint;
+      _artworkTint = color;
+      _hasExtractedAccent = true;
+      if (_useDynamicAccent) _dynamicAccentColor = color;
+      notifyListeners();
     } catch (e) {
       debugPrint('Accent extraction error: $e');
     }
@@ -223,18 +225,27 @@ class MusicProvider extends ChangeNotifier {
   }
 
   Future<void> savePlaybackState() async {
-    final song = currentSong;
-    if (song == null || queueService.items.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    final positionMs = playback.isPlayerOpen ? playback.player.position.inMilliseconds : 0;
-    await prefs.setString('resume_song_id', SongUtils.songId(song));
-    await prefs.setInt('resume_position_ms', positionMs);
-    await prefs.setBool('resume_was_playing', isPlaying);
-    await prefs.setStringList('resume_queue_ids', queueService.items.map(SongUtils.songId).toList());
-    await prefs.setInt('resume_queue_index', queueService.currentIndex);
+    try {
+      final song = currentSong;
+      if (song == null || queueService.items.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      final positionMs = playback.isPlayerOpen ? playback.player.position.inMilliseconds : 0;
+      await prefs.setString('resume_song_id', SongUtils.songId(song));
+      await prefs.setInt('resume_position_ms', positionMs);
+      await prefs.setBool('resume_was_playing', isPlaying);
+      await prefs.setStringList('resume_queue_ids', queueService.items.map(SongUtils.songId).toList());
+      await prefs.setInt('resume_queue_index', queueService.currentIndex);
+    } catch (e, st) {
+      debugPrint('sauvegarde lecture: $e\n$st');
+    }
   }
 
   Future<void> _tryResumePlayback() async {
+    // Ne jamais recharger la file par-dessus une lecture déjà lancée.
+    if (playback.userWantsPlayback) {
+      _sessionRestored = true;
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     final positionMs = prefs.getInt('resume_position_ms') ?? 0;
     final queueIds = prefs.getStringList('resume_queue_ids');
@@ -354,13 +365,16 @@ class MusicProvider extends ChangeNotifier {
     if (songs.isEmpty) return;
     if (!_listenersReady) _bindPlayback();
     queueService.replace(songs, index);
+    await playback.prepareTransport();
     await queueService.loadInto(playback.player, gapless: playback.gaplessEnabled);
     if (autoPlay) {
       playback.uiPlaying = true;
+      playback.userWantsPlayback = true;
       notifyListeners();
       await playback.applyUiState();
     } else {
       playback.uiPlaying = false;
+      playback.userWantsPlayback = false;
       await playback.holdWake(false);
       notifyListeners();
     }

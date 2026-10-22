@@ -1,4 +1,5 @@
 import 'package:donziker/providers/music_provider.dart';
+import 'package:donziker/services/battery_prompt.dart';
 import 'package:donziker/screens/favorites_screen.dart';
 import 'package:donziker/screens/home_tab_screen.dart';
 import 'package:donziker/screens/library_hub_screen.dart';
@@ -25,6 +26,7 @@ class _MainShellState extends State<MainShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<MusicProvider>().ensureLibraryLoaded();
+      BatteryPrompt.offerOnce(context);
     });
   }
 

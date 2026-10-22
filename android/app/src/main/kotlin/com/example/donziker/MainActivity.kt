@@ -28,6 +28,14 @@ class MainActivity : AudioServiceActivity() {
                 "enterPip" -> {
                     result.success(enterPipMode())
                 }
+                "acquirePlaybackWakeLock" -> {
+                    PlaybackWakeLock.acquire(this)
+                    result.success(true)
+                }
+                "releasePlaybackWakeLock" -> {
+                    PlaybackWakeLock.release()
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }

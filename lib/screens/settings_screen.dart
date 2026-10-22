@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:donziker/models/song_sort.dart';
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
 import 'package:donziker/screens/stats_screen.dart';
+import 'package:donziker/services/battery_prompt.dart';
 import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/theme/theme_extensions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -162,6 +166,13 @@ class SettingsScreen extends StatelessWidget {
                     title: 'Lecture',
                     child: Column(
                       children: [
+                        if (!kIsWeb && Platform.isAndroid)
+                          _SettingTile(
+                            title: 'Optimisation batterie',
+                            subtitle: 'Indispensable écran éteint (Tecno, Infinix, Xiaomi)',
+                            trailing: Icon(Icons.battery_alert_rounded, color: c.accent),
+                            onTap: BatteryPrompt.requestExemption,
+                          ),
                         _SettingTile(
                           title: 'Mode karaoké',
                           subtitle: 'Morceau suivant avant la fin',
@@ -201,7 +212,7 @@ class SettingsScreen extends StatelessWidget {
                     title: 'À propos',
                     child: Column(
                       children: [
-                        _SettingTile(title: 'Version', trailing: Text('1.3.0', style: TextStyle(color: c.secondaryText))),
+                        _SettingTile(title: 'Version', trailing: Text('1.3.1', style: TextStyle(color: c.secondaryText))),
                         _SettingTile(title: 'Développeur', trailing: Text('DonChaminade', style: TextStyle(color: c.secondaryText))),
                         Padding(
                           padding: const EdgeInsets.all(12),

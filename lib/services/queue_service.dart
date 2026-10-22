@@ -79,7 +79,6 @@ class QueueService {
             album: song.album ?? 'Album inconnu',
             title: song.title,
             artist: song.artist ?? 'Artiste inconnu',
-            artUri: Uri.parse('content://media/external/audio/media/${song.id}/albumart'),
           ),
         );
       }).toList(),

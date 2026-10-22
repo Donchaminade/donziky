@@ -1,4 +1,5 @@
 import 'package:donziker/services/database_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 
 /// Temps d'écoute et classements, stockés localement.
@@ -20,7 +21,9 @@ class ListeningStatsService {
     final delta = position - lastStatsPosition;
     lastStatsPosition = position;
     if (delta.inMilliseconds > 500 && delta.inMilliseconds < 5000) {
-      _db.recordPlay(songId, delta.inMilliseconds);
+      _db.recordPlay(songId, delta.inMilliseconds).catchError((Object e, StackTrace st) {
+        debugPrint('stats: $e\n$st');
+      });
     }
   }
 

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
 import 'package:donziker/screens/wow_splash_screen.dart';
 import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/widgets/app_lifecycle_handler.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:provider/provider.dart';
@@ -10,8 +13,17 @@ import 'package:provider/provider.dart';
 /// Une seule pile d'arrière-plan : [JustAudioBackground] embarque déjà
 /// audio_service. Ne pas appeler AudioService.init() en plus.
 Future<void> main() async {
-  try {
+  await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      debugPrint('FlutterError: ${details.exceptionAsString()}\n${details.stack}');
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      debugPrint('Uncaught: $error\n$stack');
+      return true;
+    };
+    try {
     
     // Initialisation séquentielle pour éviter les conflits SQLite au démarrage
     await JustAudioBackground.init(
@@ -19,9 +31,13 @@ Future<void> main() async {
       androidNotificationChannelName: 'DonZiker',
       androidNotificationChannelDescription: 'Contrôles de lecture musique',
       androidNotificationOngoing: true,
+      // Une pause transitoire (focus audio, verrouillage) ne doit pas
+      // retirer le service du premier plan : sinon le système tue le processus.
+      androidStopForegroundOnPause: false,
       androidNotificationIcon: 'drawable/ic_stat_donziker',
       androidShowNotificationBadge: true,
-      preloadArtwork: true,
+      // Les URI de pochette inventées font planter le décodage de la notification.
+      preloadArtwork: false,
     );
     
     // Pause pour laisser les services se stabiliser
@@ -44,10 +60,13 @@ Future<void> main() async {
         ),
       ),
     );
-  } catch (e, stack) {
-    debugPrint("Critical startup error: $e\n$stack");
-    runApp(MaterialApp(home: Scaffold(body: Center(child: Text("Erreur au démarrage: $e")))));
-  }
+    } catch (e, stack) {
+      debugPrint("Critical startup error: $e\n$stack");
+      runApp(MaterialApp(home: Scaffold(body: Center(child: Text("Erreur au démarrage: $e")))));
+    }
+  }, (error, stack) {
+    debugPrint('Zone: $error\n$stack');
+  });
 }
 
 class MyApp extends StatelessWidget {
