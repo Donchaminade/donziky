@@ -2,16 +2,66 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// Palette « Tega » (accueil musique) et thème classique (graine + Jakarta).
 class AppTheme {
   static const double radiusSm = 10;
-  static const double radiusMd = 14;
+  static const double radiusMd = 16;
   static const double radiusLg = 20;
   static const double radiusXl = 28;
 
-  static ThemeData lightTheme(Color accent) => _build(accent, Brightness.light);
-  static ThemeData darkTheme(Color accent) => _build(accent, Brightness.dark);
+  static const Color lime = Color(0xFFD4F26A);
+  static const Color ink = Color(0xFF141414);
+  static const Color text = Color(0xFF111111);
+  static const Color muted = Color(0xFF6B6B6B);
+  static const Color canvas = Color(0xFFF4F4F2);
+  static const Color darkBg = Color(0xFF0E0E0E);
+  static const Color darkCard = Color(0xFF1A1A1A);
 
-  static ThemeData _build(Color accent, Brightness brightness) {
+  static ThemeData tegaLight() => _tega(Brightness.light);
+  static ThemeData tegaDark() => _tega(Brightness.dark);
+
+  static ThemeData classicLight(Color accent) => _classic(accent, Brightness.light);
+  static ThemeData classicDark(Color accent) => _classic(accent, Brightness.dark);
+
+  static ThemeData lightTheme(Color accent) => classicLight(accent);
+  static ThemeData darkTheme(Color accent) => classicDark(accent);
+
+  static TextTheme _inter(Brightness brightness) {
+    final base = ThemeData(brightness: brightness).textTheme;
+    try {
+      return GoogleFonts.interTextTheme(base).apply(fontFamily: 'Inter');
+    } catch (_) {
+      return base.apply(fontFamily: 'Inter');
+    }
+  }
+
+  static ThemeData _tega(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final scheme = ColorScheme.fromSeed(
+      seedColor: lime,
+      brightness: brightness,
+      primary: lime,
+      onPrimary: ink,
+      surface: isDark ? darkBg : canvas,
+      onSurface: isDark ? const Color(0xFFF4F4F2) : text,
+    ).copyWith(
+      primary: lime,
+      onPrimary: ink,
+      secondary: isDark ? const Color(0xFFF4F4F2) : ink,
+      onSecondary: isDark ? ink : Colors.white,
+      surface: isDark ? darkBg : canvas,
+      onSurface: isDark ? const Color(0xFFF4F4F2) : text,
+      surfaceContainerHighest: isDark ? darkCard : Colors.white,
+      surfaceContainer: isDark ? darkCard : Colors.white,
+      surfaceContainerLow: isDark ? const Color(0xFF161616) : Colors.white,
+      outline: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE4E4E0),
+    );
+
+    final textTheme = _inter(brightness);
+    return _assemble(scheme, textTheme, lime, fontFamily: 'Inter');
+  }
+
+  static ThemeData _classic(Color accent, Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final scheme = ColorScheme.fromSeed(
       seedColor: accent,
@@ -19,17 +69,30 @@ class AppTheme {
       surface: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF2F2F7),
       surfaceContainerHighest: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA),
     );
-
-    final text = GoogleFonts.plusJakartaSansTextTheme(
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme(
       ThemeData(brightness: brightness).textTheme,
     );
+    return _assemble(
+      scheme,
+      textTheme,
+      accent,
+      fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
+    );
+  }
 
+  static ThemeData _assemble(
+    ColorScheme scheme,
+    TextTheme text,
+    Color accent, {
+    required String? fontFamily,
+  }) {
+    final isDark = scheme.brightness == Brightness.dark;
     return ThemeData(
       useMaterial3: true,
-      brightness: brightness,
+      brightness: scheme.brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
-      fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
+      fontFamily: fontFamily,
       textTheme: text.apply(
         bodyColor: scheme.onSurface,
         displayColor: scheme.onSurface,
@@ -47,36 +110,30 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.65 : 1),
+        color: scheme.surfaceContainerHighest,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusMd)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusLg)),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 64,
         elevation: 0,
         backgroundColor: scheme.surface.withValues(alpha: 0.92),
-        indicatorColor: accent.withValues(alpha: 0.22),
+        indicatorColor: accent.withValues(alpha: 0.35),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return text.labelSmall?.copyWith(
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? scheme.primary : scheme.onSurface.withValues(alpha: 0.55),
-          );
-        }),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          final selected = states.contains(WidgetState.selected);
-          return IconThemeData(
-            color: selected ? scheme.primary : scheme.onSurface.withValues(alpha: 0.5),
-            size: 24,
+            color: selected ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.55),
           );
         }),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: scheme.surfaceContainerHighest,
-        selectedColor: scheme.primary.withValues(alpha: 0.25),
-        labelStyle: text.labelLarge!.copyWith(fontWeight: FontWeight.w600),
+        selectedColor: accent,
+        labelStyle: text.labelLarge!.copyWith(fontWeight: FontWeight.w600, color: scheme.onSurface),
+        secondaryLabelStyle: text.labelLarge!.copyWith(fontWeight: FontWeight.w700, color: ink),
         side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
       ),
       listTileTheme: ListTileThemeData(
@@ -99,7 +156,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.8 : 1),
+        fillColor: scheme.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
           borderSide: BorderSide.none,
@@ -115,11 +172,14 @@ class AppTheme {
         ),
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: scheme.onSurface,
-        inactiveTrackColor: scheme.onSurface.withValues(alpha: 0.15),
+        trackHeight: 8,
+        activeTrackColor: accent,
+        inactiveTrackColor: scheme.onSurface.withValues(alpha: 0.12),
         thumbColor: scheme.onSurface,
+        overlayShape: SliderComponentShape.noOverlay,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: accent),
     );
   }
 }

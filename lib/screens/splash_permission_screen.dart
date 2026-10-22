@@ -1,6 +1,7 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/screens/home_screen.dart';
 import 'package:donziker/services/permission_service.dart';
+import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/theme/theme_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,8 +9,9 @@ import 'package:provider/provider.dart';
 /// Permissions après le splash animé (dialogues uniquement si [skipIntro]).
 class SplashPermissionScreen extends StatefulWidget {
   final bool skipIntro;
+  final bool preview;
 
-  const SplashPermissionScreen({super.key, this.skipIntro = false});
+  const SplashPermissionScreen({super.key, this.skipIntro = false, this.preview = false});
 
   @override
   State<SplashPermissionScreen> createState() => _SplashPermissionScreenState();
@@ -21,7 +23,9 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+    if (!widget.preview) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+    }
   }
 
   Future<void> _bootstrap() async {
@@ -146,11 +150,41 @@ class _SplashPermissionScreenState extends State<SplashPermissionScreen> {
     final c = context.dz;
     return Scaffold(
       backgroundColor: c.surface,
-      body: widget.skipIntro
-          ? const SizedBox.shrink()
-          : Center(
-              child: CircularProgressIndicator(color: c.accent),
-            ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 88,
+                height: 88,
+                decoration: const BoxDecoration(color: AppTheme.lime, shape: BoxShape.circle),
+                child: const Icon(Icons.library_music_rounded, color: AppTheme.ink, size: 42),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                'Accès à ta musique',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.6, color: c.primaryText),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'DonZiker lit uniquement les fichiers déjà sur ton téléphone. Android demandera « Musique et audio » (READ_MEDIA_AUDIO à partir d\'Android 13).',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, height: 1.4, color: c.secondaryText),
+              ),
+              const SizedBox(height: 28),
+              FilledButton(
+                onPressed: widget.preview
+                    ? () {}
+                    : () => context.read<MusicProvider>().checkAndRequestPermissions(),
+                child: const Text('Continuer'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

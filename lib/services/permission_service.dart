@@ -22,6 +22,7 @@ class PermissionService {
 
     if (Platform.isAndroid) {
       final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+      // Android 13+ : Permission.audio == READ_MEDIA_AUDIO (déjà déclaré au manifeste).
       if (sdk >= 33) {
         final audio = await Permission.audio.request();
         if (audio.isGranted) return true;

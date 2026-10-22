@@ -1,7 +1,7 @@
-import 'dart:ui';
-
 import 'package:donziker/theme/app_theme.dart';
+import 'package:donziker/theme/motion.dart';
 import 'package:donziker/theme/theme_extensions.dart';
+import 'package:donziker/widgets/motion/pressable_scale.dart';
 import 'package:flutter/material.dart';
 
 class FloatingBottomNav extends StatelessWidget {
@@ -14,62 +14,89 @@ class FloatingBottomNav extends StatelessWidget {
     required this.onSelected,
   });
 
+  static const _items = [
+    (Icons.home_outlined, Icons.home_rounded, 'Accueil'),
+    (Icons.library_music_outlined, Icons.library_music_rounded, 'Bibliothèque'),
+    (Icons.favorite_outline_rounded, Icons.favorite_rounded, 'Favoris'),
+    (Icons.settings_outlined, Icons.settings_rounded, 'Réglages'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final c = context.dz;
+    final reduce = MediaQuery.disableAnimationsOf(context);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-          child: Container(
-            decoration: BoxDecoration(
-              color: c.card.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-              border: Border.all(color: c.glassBorder, width: 0.6),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: c.isDark ? 0.45 : 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
+      child: Container(
+        height: 68,
+        decoration: BoxDecoration(
+          color: c.isDark ? AppTheme.darkCard : Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: c.isDark ? 0.35 : 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final slot = constraints.maxWidth / _items.length;
+            return Stack(
+              children: [
+                AnimatedPositioned(
+                  duration: reduce ? Duration.zero : const Duration(milliseconds: 320),
+                  curve: kEaseOutQuint,
+                  left: selectedIndex * slot + 8,
+                  top: 8,
+                  width: slot - 16,
+                  height: 52,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppTheme.lime,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    for (var i = 0; i < _items.length; i++)
+                      Expanded(
+                        child: PressableScale(
+                          onTap: () => onSelected(i),
+                          child: SizedBox(
+                            height: 68,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  i == selectedIndex ? _items[i].$2 : _items[i].$1,
+                                  size: 22,
+                                  color: i == selectedIndex ? AppTheme.ink : c.secondaryText,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _items[i].$3,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: i == selectedIndex ? FontWeight.w700 : FontWeight.w500,
+                                    color: i == selectedIndex ? AppTheme.ink : c.secondaryText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
-            ),
-            child: NavigationBar(
-              height: 64,
-              elevation: 0,
-              backgroundColor: Colors.transparent,
-              indicatorColor: c.accent.withValues(alpha: 0.22),
-              surfaceTintColor: Colors.transparent,
-              selectedIndex: selectedIndex,
-              onDestinationSelected: onSelected,
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Accueil',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.library_music_outlined),
-                  selectedIcon: Icon(Icons.library_music_rounded),
-                  label: 'Bibliothèque',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.favorite_outline_rounded),
-                  selectedIcon: Icon(Icons.favorite_rounded),
-                  label: 'Favoris',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings_rounded),
-                  label: 'Réglages',
-                ),
-              ],
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

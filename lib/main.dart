@@ -6,6 +6,9 @@ import 'package:donziker/widgets/app_lifecycle_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:provider/provider.dart';
+
+/// Une seule pile d'arrière-plan : [JustAudioBackground] embarque déjà
+/// audio_service. Ne pas appeler AudioService.init() en plus.
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
@@ -54,12 +57,22 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
+        final music = context.watch<MusicProvider>();
+        final tega = themeProvider.isTega;
+        final accent = !tega && music.useDynamicAccent && music.hasExtractedAccent
+            ? music.dynamicAccentColor
+            : themeProvider.accentColor;
         return MaterialApp(
           title: 'DonZiker',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme(themeProvider.accentColor),
-          darkTheme: AppTheme.darkTheme(themeProvider.accentColor),
+          theme: tega ? AppTheme.tegaLight() : AppTheme.classicLight(accent),
+          darkTheme: tega ? AppTheme.tegaDark() : AppTheme.classicDark(accent),
           themeMode: themeProvider.themeMode,
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+            final data = themeProvider.disableAnimations ? media.copyWith(disableAnimations: true) : media;
+            return MediaQuery(data: data, child: child ?? const SizedBox.shrink());
+          },
           home: const WowSplashScreen(),
         );
       },

@@ -11,7 +11,9 @@ class PlaylistsScreen extends StatelessWidget {
     final provider = context.watch<MusicProvider>();
     final playlists = provider.playlists;
 
-    return Column(
+    return Scaffold(
+      appBar: AppBar(title: const Text('Playlists')),
+      body: Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
@@ -58,6 +60,7 @@ class PlaylistsScreen extends StatelessWidget {
                 ),
         ),
       ],
+      ),
     );
   }
 

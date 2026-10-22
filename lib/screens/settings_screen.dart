@@ -1,6 +1,7 @@
 import 'package:donziker/models/song_sort.dart';
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
+import 'package:donziker/screens/stats_screen.dart';
 import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/theme/theme_extensions.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +37,7 @@ class SettingsScreen extends StatelessWidget {
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
-                'Paramètres',
+                'Réglages',
                 style: TextStyle(fontWeight: FontWeight.w800, color: c.primaryText),
               ),
               background: Container(decoration: BoxDecoration(gradient: c.heroGradient)),
@@ -53,48 +54,87 @@ class SettingsScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         _SettingTile(
+                          title: 'Ton prénom',
+                          subtitle: themeProvider.displayName,
+                          trailing: Icon(Icons.edit_rounded, color: c.secondaryText),
+                          onTap: () => _editName(context, themeProvider),
+                        ),
+                        _SettingTile(
                           title: 'Mode sombre',
                           trailing: Switch.adaptive(
                             value: isDark,
-                            activeColor: c.accent,
+                            activeThumbColor: AppTheme.ink,
+                            activeTrackColor: AppTheme.lime,
                             onChanged: themeProvider.toggleTheme,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Couleur d\'accent (toute l\'app)',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.secondaryText),
+                        _SettingTile(
+                          title: 'Thème Tega',
+                          subtitle: 'Clair citron, cartes blanches',
+                          trailing: Switch.adaptive(
+                            value: themeProvider.isTega,
+                            activeThumbColor: AppTheme.ink,
+                            activeTrackColor: AppTheme.lime,
+                            onChanged: (v) => themeProvider.setVisualStyle(
+                              v ? AppVisualStyle.tega : AppVisualStyle.classic,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: _accentPresets.map((color) {
-                            final selected = themeProvider.accentColor.toARGB32() == color.toARGB32();
-                            return GestureDetector(
-                              onTap: () => themeProvider.updateAccentColor(color),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  shape: BoxShape.circle,
-                                  border: selected
-                                      ? Border.all(color: c.primaryText, width: 3)
-                                      : null,
-                                  boxShadow: selected
-                                      ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 12)]
-                                      : null,
+                        _SettingTile(
+                          title: 'Réduire les animations',
+                          trailing: Switch.adaptive(
+                            value: themeProvider.disableAnimations,
+                            activeThumbColor: AppTheme.ink,
+                            activeTrackColor: AppTheme.lime,
+                            onChanged: themeProvider.setDisableAnimations,
+                          ),
+                        ),
+                        if (!themeProvider.isTega) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Ancien thème — couleur d\'accent',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.secondaryText),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: _accentPresets.map((color) {
+                              final selected = themeProvider.accentColor.toARGB32() == color.toARGB32();
+                              return GestureDetector(
+                                onTap: () => themeProvider.updateAccentColor(color),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                    border: selected ? Border.all(color: c.primaryText, width: 3) : null,
+                                  ),
+                                  child: selected ? Icon(Icons.check_rounded, color: c.scheme.onPrimary, size: 22) : null,
                                 ),
-                                child: selected
-                                    ? Icon(Icons.check_rounded, color: c.scheme.onPrimary, size: 22)
-                                    : null,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 12),
+                              );
+                            }).toList(),
+                          ),
+                          _SettingTile(
+                            title: 'Couleur dynamique',
+                            subtitle: 'Teinte l\'ancien thème depuis la pochette',
+                            trailing: Switch.adaptive(
+                              value: musicProvider.useDynamicAccent,
+                              activeThumbColor: AppTheme.ink,
+                              activeTrackColor: AppTheme.lime,
+                              onChanged: musicProvider.setUseDynamicAccent,
+                            ),
+                          ),
+                        ] else
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                            child: Text(
+                              'Accent citron fixe. Le thème classique et la couleur dynamique restent disponibles ici.',
+                              style: TextStyle(fontSize: 12, color: c.secondaryText, height: 1.35),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -137,7 +177,8 @@ class SettingsScreen extends StatelessWidget {
                           title: 'Masquer les sons courts',
                           trailing: Switch.adaptive(
                             value: musicProvider.hideShortSounds,
-                            activeColor: c.accent,
+                            activeThumbColor: AppTheme.ink,
+                            activeTrackColor: AppTheme.lime,
                             onChanged: musicProvider.setHideShortSounds,
                           ),
                         ),
@@ -153,7 +194,8 @@ class SettingsScreen extends StatelessWidget {
                           subtitle: 'Morceau suivant avant la fin',
                           trailing: Switch.adaptive(
                             value: musicProvider.karaokeMode,
-                            activeColor: c.accent,
+                            activeThumbColor: AppTheme.ink,
+                            activeTrackColor: AppTheme.lime,
                             onChanged: (_) => musicProvider.toggleKaraokeMode(),
                           ),
                         ),
@@ -174,10 +216,19 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   _Group(
+                    title: 'Activité',
+                    child: _SettingTile(
+                      title: 'Statistiques',
+                      subtitle: 'Temps d\'écoute, lectures, favoris',
+                      trailing: Icon(Icons.bar_chart_rounded, color: c.accent),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatsScreen())),
+                    ),
+                  ),
+                  _Group(
                     title: 'À propos',
                     child: Column(
                       children: [
-                        _SettingTile(title: 'Version', trailing: Text('1.2.0', style: TextStyle(color: c.secondaryText))),
+                        _SettingTile(title: 'Version', trailing: Text('1.3.0', style: TextStyle(color: c.secondaryText))),
                         _SettingTile(title: 'Développeur', trailing: Text('DonChaminade', style: TextStyle(color: c.secondaryText))),
                         Padding(
                           padding: const EdgeInsets.all(12),
@@ -197,6 +248,24 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _editName(BuildContext context, ThemeProvider theme) async {
+    final controller = TextEditingController(text: theme.displayName);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Comment on t\'appelle ?'),
+        content: TextField(controller: controller, autofocus: true, textCapitalization: TextCapitalization.words),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Enregistrer')),
+        ],
+      ),
+    );
+    if (name != null && name.isNotEmpty) {
+      await theme.setDisplayName(name);
+    }
   }
 }
 
@@ -226,13 +295,14 @@ class _Group extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          Material(
+            color: c.card,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: child,
             ),
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-            child: child,
           ),
         ],
       ),

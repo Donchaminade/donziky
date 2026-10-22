@@ -2,7 +2,6 @@ import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/theme/app_theme.dart';
 import 'package:donziker/theme/theme_extensions.dart';
 import 'package:donziker/utils/song_utils.dart';
-import 'package:donziker/widgets/circular_audio_progress.dart';
 import 'package:donziker/widgets/premium/glass_surface.dart';
 import 'package:donziker/widgets/premium/player_controls.dart';
 import 'package:donziker/widgets/song_options_sheet.dart';
@@ -38,6 +37,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
 
         final c = context.dz;
+        final tint = provider.artworkTint;
 
         return Scaffold(
           backgroundColor: c.surface,
@@ -50,7 +50,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      c.accent.withValues(alpha: 0.45),
+                      tint.withValues(alpha: c.isDark ? 0.62 : 0.5),
                       c.surface,
                       c.surface,
                     ],
@@ -63,8 +63,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     _topBar(context, provider, song, c),
                     const Spacer(flex: 2),
                     _artwork(provider, song, c),
-                    const SizedBox(height: 12),
-                    _timeRow(provider, c),
+                    const SizedBox(height: 18),
+                    _seekBar(provider, c),
                     const Spacer(),
                     _songInfo(provider, song, c),
                     if (provider.karaokeMode) ...[
@@ -143,72 +143,83 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _artwork(MusicProvider provider, SongModel song, DzColors c) {
-    return StreamBuilder<Duration>(
-      stream: provider.audioPlayer.positionStream,
-      builder: (context, snap) {
-        final pos = snap.data ?? Duration.zero;
-        final dur = provider.audioPlayer.duration ?? Duration.zero;
-        final progress = dur.inMilliseconds > 0 ? pos.inMilliseconds / dur.inMilliseconds : 0.0;
-        final size = MediaQuery.of(context).size.width * 0.74;
-
-        return Hero(
-          tag: 'albumArt',
-          child: CircularAudioProgress(
-            progress: progress.clamp(0.0, 1.0),
-            size: size,
-            strokeWidth: 7,
-            activeColor: c.accent,
-            inactiveColor: c.primaryText.withValues(alpha: 0.12),
-            onSeek: (p) {
-              if (dur.inMilliseconds > 0) {
-                provider.audioPlayer.seek(Duration(milliseconds: (dur.inMilliseconds * p).toInt()));
-              }
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: c.accent.withValues(alpha: 0.35),
-                    blurRadius: 40,
-                    spreadRadius: 4,
-                  ),
-                ],
+    final size = MediaQuery.sizeOf(context).width - 64;
+    return Hero(
+      tag: 'albumArt',
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: provider.artworkTint.withValues(alpha: 0.35),
+                blurRadius: 32,
+                offset: const Offset(0, 16),
               ),
-              child: ClipOval(
-                child: SizedBox(
-                  width: size - 30,
-                  height: size - 30,
-                  child: QueryArtworkWidget(
-                    id: song.id,
-                    type: ArtworkType.AUDIO,
-                    nullArtworkWidget: Container(
-                      color: c.card,
-                      child: Icon(Icons.music_note_rounded, size: 80, color: c.tertiaryText),
-                    ),
-                  ),
-                ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: QueryArtworkWidget(
+              id: song.id,
+              type: ArtworkType.AUDIO,
+              artworkWidth: 900,
+              artworkHeight: 900,
+              artworkFit: BoxFit.cover,
+              nullArtworkWidget: Container(
+                color: c.card,
+                child: Icon(Icons.music_note_rounded, size: 80, color: c.tertiaryText),
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _timeRow(MusicProvider provider, DzColors c) {
+  Widget _seekBar(MusicProvider provider, DzColors c) {
     return StreamBuilder<Duration>(
       stream: provider.audioPlayer.positionStream,
       builder: (context, snap) {
         final pos = snap.data ?? Duration.zero;
         final dur = provider.audioPlayer.duration ?? Duration.zero;
+        final max = dur.inMilliseconds <= 0 ? 1.0 : dur.inMilliseconds.toDouble();
+        final value = pos.inMilliseconds.clamp(0, max.round()).toDouble();
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
             children: [
-              Text(_format(pos), style: TextStyle(color: c.secondaryText, fontSize: 12, fontWeight: FontWeight.w600)),
-              Text(_format(dur), style: TextStyle(color: c.secondaryText, fontSize: 12, fontWeight: FontWeight.w600)),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 8,
+                  activeTrackColor: AppTheme.lime,
+                  inactiveTrackColor: c.primaryText.withValues(alpha: 0.12),
+                  thumbColor: c.primaryText,
+                  overlayShape: SliderComponentShape.noOverlay,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                ),
+                child: Slider(
+                  min: 0,
+                  max: max,
+                  value: value,
+                  onChanged: dur.inMilliseconds <= 0
+                      ? null
+                      : (v) => provider.audioPlayer.seek(Duration(milliseconds: v.round())),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_format(pos), style: TextStyle(color: c.secondaryText, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text(_format(dur), style: TextStyle(color: c.secondaryText, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
             ],
           ),
         );
@@ -456,7 +467,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _queueSheet(MusicProvider provider, DzColors c) {
-    final queue = provider.queue;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -464,35 +474,54 @@ class _PlayerScreenState extends State<PlayerScreen> {
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.6,
-        builder: (_, controller) => Column(
-          children: [
-            const SizedBox(height: 12),
-            Text('File d\'attente', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: c.primaryText)),
-            Expanded(
-              child: ListView.builder(
-                controller: controller,
-                itemCount: queue.length,
-                itemBuilder: (context, i) {
-                  final s = queue[i];
-                  final playing = provider.audioPlayer.currentIndex == i;
-                  return ListTile(
-                    leading: QueryArtworkWidget(
-                      id: s.id,
-                      type: ArtworkType.AUDIO,
-                      nullArtworkWidget: Icon(Icons.music_note, color: c.accent),
-                    ),
-                    title: Text(s.title, style: TextStyle(color: c.primaryText)),
-                    subtitle: Text(s.artist ?? '', style: TextStyle(color: c.secondaryText)),
-                    trailing: playing ? Icon(Icons.equalizer_rounded, color: c.accent) : null,
-                    onTap: () {
-                      provider.audioPlayer.seek(Duration.zero, index: i);
-                      Navigator.pop(ctx);
+        builder: (_, controller) => Consumer<MusicProvider>(
+          builder: (context, live, _) {
+            final queue = live.queue;
+            return Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: c.tertiaryText,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('File d\'attente', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: c.primaryText)),
+                Text('Maintiens pour réordonner', style: TextStyle(color: c.secondaryText, fontSize: 12)),
+                Expanded(
+                  child: ReorderableListView.builder(
+                    scrollController: controller,
+                    itemCount: queue.length,
+                    onReorderItem: (oldIndex, newIndex) => live.reorderQueue(oldIndex, newIndex, alreadyFinal: true),
+                    itemBuilder: (context, i) {
+                      final s = queue[i];
+                      final playing = live.currentSong?.id == s.id;
+                      return ListTile(
+                        key: ValueKey('${s.id}-$i'),
+                        leading: QueryArtworkWidget(
+                          id: s.id,
+                          type: ArtworkType.AUDIO,
+                          nullArtworkWidget: Icon(Icons.music_note, color: c.accent),
+                        ),
+                        title: Text(s.title, style: TextStyle(color: c.primaryText)),
+                        subtitle: Text(s.artist ?? '', style: TextStyle(color: c.secondaryText)),
+                        trailing: playing
+                            ? Icon(Icons.equalizer_rounded, color: c.accent)
+                            : Icon(Icons.drag_handle_rounded, color: c.tertiaryText),
+                        onTap: () {
+                          live.audioPlayer.seek(Duration.zero, index: i);
+                          Navigator.pop(ctx);
+                        },
+                      );
                     },
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
