@@ -6,6 +6,7 @@ import 'package:donziker/providers/theme_provider.dart';
 import 'package:donziker/screens/home_screen.dart';
 import 'package:donziker/screens/splash_permission_screen.dart';
 import 'package:donziker/services/permission_service.dart';
+import 'package:donziker/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,15 +20,15 @@ const kSplashDurationFirstLaunch = Duration(milliseconds: 3200);
 
 /// Splash d'ouverture premium — animations, puis accueil ou permissions.
 class WowSplashScreen extends StatefulWidget {
-  const WowSplashScreen({super.key});
+  final bool holdNavigation;
+
+  const WowSplashScreen({super.key, this.holdNavigation = false});
 
   @override
   State<WowSplashScreen> createState() => _WowSplashScreenState();
 }
 
 class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderStateMixin {
-  static const _surface = Color(0xFF0A0A0A);
-
   late final AnimationController _intro;
   late final AnimationController _pulse;
   late final AnimationController _orbit;
@@ -51,10 +52,10 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
       vsync: this,
       duration: Duration(milliseconds: (kSplashDurationReturning.inMilliseconds * 0.55).round()),
     );
-    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
-    _orbit = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
-    _eq = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
-    _shimmer = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat();
+    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+    _orbit = AnimationController(vsync: this, duration: const Duration(seconds: 8));
+    _eq = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _shimmer = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200));
 
     _logoScale = Tween<double>(begin: 0.35, end: 1.0).animate(
       CurvedAnimation(parent: _intro, curve: const Interval(0.0, 0.55, curve: Curves.elasticOut)),
@@ -72,8 +73,19 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
       CurvedAnimation(parent: _intro, curve: const Interval(0.1, 1.0, curve: Curves.easeOutCubic)),
     );
 
-    _intro.forward();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _launch());
+    final reduce = context.read<ThemeProvider>().disableAnimations || MediaQuery.disableAnimationsOf(context);
+    if (reduce) {
+      _intro.value = 1;
+    } else {
+      _intro.forward();
+      _pulse.repeat(reverse: true);
+      _orbit.repeat();
+      _eq.repeat();
+      _shimmer.repeat();
+    }
+    if (!widget.holdNavigation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _launch());
+    }
   }
 
   Future<void> _launch() async {
@@ -148,10 +160,17 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final accent = context.watch<ThemeProvider>().accentColor;
+    final theme = context.watch<ThemeProvider>();
+    final isDark = theme.themeMode == ThemeMode.dark;
+    final accent = theme.isTega ? AppTheme.lime : theme.accentColor;
+    final bg = theme.isTega
+        ? (isDark ? AppTheme.darkBg : AppTheme.canvas)
+        : (isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF2F2F7));
+    final titleColor = isDark ? Colors.white : AppTheme.ink;
+    final muted = isDark ? Colors.white.withValues(alpha: 0.55) : AppTheme.muted;
 
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: bg,
       body: AnimatedBuilder(
         animation: Listenable.merge([_intro, _pulse, _orbit, _eq, _shimmer]),
         builder: (context, _) {
@@ -159,11 +178,12 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
           return Stack(
             fit: StackFit.expand,
             children: [
-              _AnimatedGradientBackground(progress: _intro.value, accent: accent),
+              _AnimatedGradientBackground(progress: _intro.value, accent: accent, base: bg),
               CustomPaint(
                 painter: _ParticleFieldPainter(
                   progress: _orbit.value,
                   accent: accent,
+                  foreground: titleColor,
                   particleCount: 48,
                 ),
               ),
@@ -267,9 +287,9 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
                                   colors: [
-                                    Colors.white,
+                                    titleColor,
                                     accent,
-                                    Colors.white,
+                                    titleColor,
                                   ],
                                   stops: const [0.0, 0.5, 1.0],
                                   transform: GradientTranslation(slide, 0),
@@ -278,21 +298,21 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
                               blendMode: BlendMode.srcIn,
                               child: Text(
                                 'DonZiker',
-                                style: GoogleFonts.plusJakartaSans(
+                                style: _splashType(
                                   fontSize: 42,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w700,
                                   letterSpacing: -1.5,
-                                  color: Colors.white,
+                                  color: titleColor,
                                 ),
                               ),
                             ),
                             const SizedBox(height: 10),
                             Text(
                               'Votre musique. Sans limites.',
-                              style: GoogleFonts.plusJakartaSans(
+                              style: _splashType(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.white.withValues(alpha: 0.55),
+                                color: muted,
                                 letterSpacing: 0.3,
                               ),
                             ),
@@ -301,17 +321,18 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
                       ),
                     ),
                     const SizedBox(height: 48),
-                    Opacity(
-                      opacity: _textFade.value * 0.9,
-                      child: SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: accent.withValues(alpha: 0.85),
+                    if (!(theme.disableAnimations || MediaQuery.disableAnimationsOf(context)))
+                      Opacity(
+                        opacity: _textFade.value * 0.9,
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: accent.withValues(alpha: 0.85),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -326,8 +347,9 @@ class _WowSplashScreenState extends State<WowSplashScreen> with TickerProviderSt
 class _AnimatedGradientBackground extends StatelessWidget {
   final double progress;
   final Color accent;
+  final Color base;
 
-  const _AnimatedGradientBackground({required this.progress, required this.accent});
+  const _AnimatedGradientBackground({required this.progress, required this.accent, required this.base});
 
   @override
   Widget build(BuildContext context) {
@@ -337,10 +359,10 @@ class _AnimatedGradientBackground extends StatelessWidget {
           begin: Alignment(-1.0 + progress * 0.4, -1),
           end: Alignment(1.0 - progress * 0.3, 1.2),
           colors: [
-            const Color(0xFF0A0A0A),
-            accent.withValues(alpha: 0.22),
-            const Color(0xFF14101A),
-            const Color(0xFF0A0A0A),
+            base,
+            accent.withValues(alpha: 0.28),
+            Color.alphaBlend(accent.withValues(alpha: 0.12), base),
+            base,
           ],
           stops: const [0.0, 0.35, 0.65, 1.0],
         ),
@@ -389,11 +411,13 @@ class _EqualizerBars extends StatelessWidget {
 class _ParticleFieldPainter extends CustomPainter {
   final double progress;
   final Color accent;
+  final Color foreground;
   final int particleCount;
 
   _ParticleFieldPainter({
     required this.progress,
     required this.accent,
+    required this.foreground,
     required this.particleCount,
   });
 
@@ -411,7 +435,7 @@ class _ParticleFieldPainter extends CustomPainter {
       canvas.drawCircle(
         Offset(x, y),
         radius,
-        Paint()..color = (i.isEven ? accent : Colors.white).withValues(alpha: alpha),
+        Paint()..color = (i.isEven ? accent : foreground).withValues(alpha: alpha),
       );
     }
   }
@@ -450,6 +474,30 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WavePainter old) => old.progress != progress;
+}
+
+TextStyle _splashType({
+  required double fontSize,
+  required FontWeight fontWeight,
+  required Color color,
+  double letterSpacing = 0,
+}) {
+  try {
+    return GoogleFonts.inter(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      letterSpacing: letterSpacing,
+      color: color,
+    );
+  } catch (_) {
+    return TextStyle(
+      fontFamily: 'Inter',
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      letterSpacing: letterSpacing,
+      color: color,
+    );
+  }
 }
 
 /// Décale un gradient pour l'effet shimmer du titre.

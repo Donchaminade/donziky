@@ -14,7 +14,9 @@ class GenresScreen extends StatelessWidget {
     final genres = SongUtils.groupByGenre(songs);
     final keys = genres.keys.toList()..sort();
 
-    return ListView.builder(
+    return Scaffold(
+      appBar: AppBar(title: const Text('Genres')),
+      body: ListView.builder(
       itemCount: keys.length,
       itemBuilder: (context, i) {
         final name = keys[i];
@@ -29,6 +31,7 @@ class GenresScreen extends StatelessWidget {
           ),
         );
       },
+      ),
     );
   }
 }

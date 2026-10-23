@@ -14,7 +14,9 @@ class ArtistsScreen extends StatelessWidget {
     final artists = SongUtils.groupByArtist(songs);
     final keys = artists.keys.toList()..sort();
 
-    return ListView.builder(
+    return Scaffold(
+      appBar: AppBar(title: const Text('Artistes')),
+      body: ListView.builder(
       itemCount: keys.length,
       itemBuilder: (context, i) {
         final name = keys[i];
@@ -29,6 +31,7 @@ class ArtistsScreen extends StatelessWidget {
           ),
         );
       },
+      ),
     );
   }
 }

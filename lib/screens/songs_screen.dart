@@ -46,10 +46,15 @@ class _SongsScreenState extends State<SongsScreen> {
     }
 
     if (songs.isEmpty) {
-      return const Center(child: Text('Aucun morceau trouvé sur cet appareil'));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Morceaux')),
+        body: const Center(child: Text('Aucun morceau trouvé sur cet appareil')),
+      );
     }
 
-    return ListView.builder(
+    return Scaffold(
+      appBar: AppBar(title: const Text('Morceaux')),
+      body: ListView.builder(
       controller: _scrollController,
       itemCount: songs.length,
       itemBuilder: (context, i) {
@@ -60,6 +65,7 @@ class _SongsScreenState extends State<SongsScreen> {
           child: SongListTile(song: song, playlistContext: songs, index: i),
         );
       },
+      ),
     );
   }
 }

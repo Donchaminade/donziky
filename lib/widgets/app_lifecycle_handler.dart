@@ -1,4 +1,5 @@
 import 'package:donziker/providers/music_provider.dart';
+import 'package:donziker/services/playback_continuity.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,10 +28,15 @@ class _AppLifecycleHandlerState extends State<AppLifecycleHandler> with WidgetsB
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.detached) {
+    // paused / inactive / detached / hidden : on enregistre la position.
+    // Aucun de ces états ne met la lecture en pause.
+    if (PlaybackContinuity.lifecycleStopsPlayback(state.name)) return;
+    if (!mounted) return;
+    if (state == AppLifecycleState.inactive) return;
+    try {
       context.read<MusicProvider>().onAppPaused();
+    } catch (e, st) {
+      debugPrint('sauvegarde au cycle de vie: $e\n$st');
     }
   }
 

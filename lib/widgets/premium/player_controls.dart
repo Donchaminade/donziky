@@ -1,6 +1,6 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/theme/theme_extensions.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide RepeatMode;
 
 class PlayerControls extends StatelessWidget {
   final MusicProvider provider;
@@ -34,26 +34,22 @@ class PlayerControls extends StatelessWidget {
         GestureDetector(
           onTap: onPlayPause,
           child: Container(
-            width: 80,
-            height: 80,
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [c.accent, c.accent.withValues(alpha: 0.75)],
-              ),
+              color: c.accent,
               boxShadow: [
                 BoxShadow(
                   color: c.accent.withValues(alpha: 0.45),
-                  blurRadius: 28,
-                  spreadRadius: 2,
+                  blurRadius: 24,
+                  spreadRadius: 1,
                 ),
               ],
             ),
             child: Icon(
               provider.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              size: 44,
+              size: 40,
               color: c.scheme.onPrimary,
             ),
           ),

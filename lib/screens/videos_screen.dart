@@ -12,9 +12,14 @@ class VideosScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final videos = context.watch<MusicProvider>().videos;
     if (videos.isEmpty) {
-      return const Center(child: Text('Aucune vidéo locale trouvée'));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Vidéos')),
+        body: const Center(child: Text('Aucune vidéo locale trouvée')),
+      );
     }
-    return GridView.builder(
+    return Scaffold(
+      appBar: AppBar(title: const Text('Vidéos')),
+      body: GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -48,6 +53,7 @@ class VideosScreen extends StatelessWidget {
           ),
         );
       },
+      ),
     );
   }
 }

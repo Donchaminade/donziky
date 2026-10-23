@@ -15,7 +15,9 @@ class FoldersScreen extends StatelessWidget {
     final folders = SongUtils.groupByFolder(songs);
     final keys = folders.keys.toList()..sort();
 
-    return ListView.builder(
+    return Scaffold(
+      appBar: AppBar(title: const Text('Dossiers')),
+      body: ListView.builder(
       itemCount: keys.length,
       itemBuilder: (context, i) {
         final path = keys[i];
@@ -41,6 +43,7 @@ class FoldersScreen extends StatelessWidget {
           ),
         );
       },
+      ),
     );
   }
 }

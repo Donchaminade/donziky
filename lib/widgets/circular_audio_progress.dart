@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+/// Disque + arc de progression. Restauré depuis master (commit 51cd782).
 class CircularAudioProgress extends StatelessWidget {
   final double progress;
   final double size;

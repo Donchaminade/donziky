@@ -1,34 +1,47 @@
 import 'package:donziker/providers/music_provider.dart';
 import 'package:donziker/providers/theme_provider.dart';
 import 'package:donziker/utils/song_utils.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('ThemeProvider exposes dark mode by default', (tester) async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('ThemeProvider expose le thème clair Tega par défaut', (tester) async {
     final theme = ThemeProvider();
+    await theme.ready;
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: theme,
         child: MaterialApp(
-          theme: ThemeData.dark(),
           home: Builder(
             builder: (context) {
-              return Text(
-                context.watch<ThemeProvider>().themeMode == ThemeMode.dark ? 'dark' : 'light',
-              );
+              final provider = context.watch<ThemeProvider>();
+              final mode = provider.themeMode == ThemeMode.light ? 'light' : 'dark';
+              final style = provider.isTega ? 'tega' : 'classic';
+              return Text('$mode-$style-${provider.displayName}');
             },
           ),
         ),
       ),
     );
     await tester.pump();
-    expect(find.text('dark'), findsOneWidget);
+    expect(find.text('light-tega-Tega'), findsOneWidget);
+
+    await theme.setVisualStyle(AppVisualStyle.classic);
+    theme.toggleTheme(true);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(find.text('dark-classic-Tega'), findsOneWidget);
   });
 
   test('SongUtils filters by query', () {
-    // SongModel cannot be constructed easily without platform; test filter logic via empty list
     final result = SongUtils.filterSongs(
       [],
       query: 'test',
@@ -39,8 +52,9 @@ void main() {
     expect(result, isEmpty);
   });
 
-  test('MusicProvider repeat mode cycles', () {
+  test('MusicProvider repeat mode cycles from all', () {
     final provider = MusicProvider();
     expect(provider.repeatMode, RepeatMode.all);
+    provider.dispose();
   });
 }
